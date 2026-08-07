@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import {
   X,
   Send,
@@ -259,7 +260,9 @@ export function PreSendMediaModal({ isOpen, files, onClose, onSend }: Props) {
     }
   };
 
-  return (
+  if (!isOpen) return null;
+
+  return createPortal(
     <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex flex-col select-none animate-in fade-in duration-150">
       {/* Hidden input to add more files */}
       <input
@@ -408,6 +411,7 @@ export function PreSendMediaModal({ isOpen, files, onClose, onSend }: Props) {
           </Button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

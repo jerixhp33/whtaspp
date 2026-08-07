@@ -571,10 +571,10 @@ export function MessageBubble({
                 onClick={() =>
                   message.reply_to?.id && onScrollToReply && onScrollToReply(message.reply_to.id)
                 }
-                className={`p-2 mb-2 rounded-lg text-xs border-l-2 select-none cursor-pointer transition-opacity hover:opacity-90 ${
+                className={`px-2.5 py-1.5 mb-1.5 rounded-xl rounded-l-md text-xs border-l-4 select-none cursor-pointer transition-colors hover:opacity-90 ${
                   isOwn
-                    ? 'bg-emerald-700/50 border-l-white text-emerald-100'
-                    : 'bg-zinc-900 border-l-emerald-500 text-zinc-300'
+                    ? 'bg-emerald-800/30 border-l-emerald-300 text-emerald-100'
+                    : 'bg-zinc-900/50 border-l-emerald-500 text-zinc-300'
                 }`}
               >
                 <p className="font-semibold text-[11px]">

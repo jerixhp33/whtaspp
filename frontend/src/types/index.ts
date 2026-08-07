@@ -50,6 +50,7 @@ export interface Conversation {
   last_message_at?: string;
   unread_count: number;
   members: ConversationMember[];
+  conversation_members?: ConversationMember[];
   group?: Group;
   created_at: string;
   updated_at: string;
@@ -64,6 +65,7 @@ export interface ConversationMember {
   last_read_at: string;
   is_muted: boolean;
   profile?: Profile;
+  profiles?: Profile;
 }
 
 // Messages

@@ -26,8 +26,14 @@ export function ConversationItem({ conversation, isActive, onClick }: Props) {
   };
 
   const isGroup = conversation.type === 'group';
-  const otherMember = conversation.members?.find(m => m.user_id !== user?.id)?.profile;
-  const name = isGroup ? conversation.group?.name : (otherMember?.display_name || otherMember?.username || 'Unknown');
+  const members = conversation.members || (conversation as any).conversation_members || [];
+  const otherMemberObj = members.find((m: any) => m.user_id !== user?.id);
+  const otherMember = otherMemberObj?.profiles || otherMemberObj?.profile;
+  
+  const name = isGroup 
+    ? conversation.group?.name 
+    : (otherMember?.display_name || otherMember?.username || 'Chat User');
+    
   const avatarUrl = isGroup ? conversation.group?.avatar_url : otherMember?.avatar_url;
   const isOnline = isGroup ? false : otherMember?.is_online;
 
@@ -35,15 +41,15 @@ export function ConversationItem({ conversation, isActive, onClick }: Props) {
     <div 
       onClick={onClick}
       className={`flex items-center gap-3 p-3 cursor-pointer transition-colors border-b border-zinc-800/50
-        ${isActive ? 'bg-zinc-800/80' : 'hover:bg-zinc-800/50'}`}
+        ${isActive ? 'bg-zinc-800/80 border-l-2 border-l-emerald-500' : 'hover:bg-zinc-800/50'}`}
     >
       <div className="relative">
-        <div className="w-12 h-12 rounded-full bg-zinc-700 overflow-hidden flex-shrink-0">
+        <div className="w-12 h-12 rounded-full bg-zinc-800 overflow-hidden flex-shrink-0 border border-zinc-700 flex items-center justify-center">
           {avatarUrl ? (
             <img src={avatarUrl} alt={name} className="w-full h-full object-cover" />
           ) : (
             <div className="w-full h-full flex items-center justify-center text-lg font-medium text-zinc-300">
-              {name?.charAt(0) || '?'}
+              {name?.charAt(0)?.toUpperCase() || '?'}
             </div>
           )}
         </div>
@@ -56,13 +62,13 @@ export function ConversationItem({ conversation, isActive, onClick }: Props) {
         <div className="flex justify-between items-baseline mb-1">
           <h3 className="font-medium text-zinc-100 truncate">{name}</h3>
           {conversation.last_message_at && (
-            <span className="text-xs text-zinc-500 whitespace-nowrap ml-2">
+            <span className="text-[11px] text-zinc-500 whitespace-nowrap ml-2">
               {formatDistanceToNow(new Date(conversation.last_message_at), { addSuffix: true })}
             </span>
           )}
         </div>
         <div className="flex justify-between items-center">
-          <p className="text-sm text-zinc-400 truncate">
+          <p className="text-xs text-zinc-400 truncate">
             {renderLastMessage()}
           </p>
           {conversation.unread_count > 0 && (

@@ -29,8 +29,10 @@ export function ConversationList() {
     if (filter === 'private' && isGroup) return false;
     if (filter === 'groups' && !isGroup) return false;
     
-    const otherMember = c.members?.find(m => m.user_id !== user?.id)?.profile;
-    const name = isGroup ? c.group?.name : (otherMember?.display_name || otherMember?.username || 'Unknown');
+    const members = c.members || (c as any).conversation_members || [];
+    const otherMemberObj = members.find((m: any) => m.user_id !== user?.id);
+    const otherMember = otherMemberObj?.profiles || otherMemberObj?.profile;
+    const name = isGroup ? c.group?.name : (otherMember?.display_name || otherMember?.username || 'Chat User');
     
     if (search && !name?.toLowerCase().includes(search.toLowerCase())) return false;
     return true;

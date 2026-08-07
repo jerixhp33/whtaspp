@@ -20,10 +20,48 @@
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
     <link rel="manifest" href="/manifest.webmanifest" />
   </head>
-  <body class="bg-zinc-950 text-zinc-100 antialiased select-none overflow-hidden fixed inset-0 w-full h-[100dvh]">
-    <div id="root" class="absolute inset-0 overflow-hidden flex flex-col"></div>
+  <style>
+    html, body {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #09090b; /* zinc-950 */
+      color: #f4f4f5; /* zinc-100 */
+      overscroll-behavior-y: none;
+    }
+    #root {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+  </style>
+  <body class="antialiased select-none">
+    <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
     <script>
+      // Strictly lock the #root container to the visual viewport height
+      // This prevents Android from pushing the top bar off-screen when the keyboard opens.
+      function syncHeight() {
+        const root = document.getElementById('root');
+        if (root && window.visualViewport) {
+          root.style.height = window.visualViewport.height + 'px';
+          root.style.top = window.visualViewport.offsetTop + 'px';
+        }
+      }
+      if (window.visualViewport) {
+        window.visualViewport.addEventListener('resize', syncHeight);
+        window.visualViewport.addEventListener('scroll', syncHeight);
+        syncHeight();
+      }
+
       // Register Service Worker for PWA
       if ('serviceWorker' in navigator && window.location.protocol.startsWith('http')) {
         window.addEventListener('load', () => {

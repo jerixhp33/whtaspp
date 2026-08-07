@@ -18,7 +18,7 @@ export function EmojiText({ text, className = '', animate = false, forceSize }: 
     const emojis = text.trim().match(UNICODE_EMOJI_REGEX) || [];
     const size = forceSize || (count === 1 ? 'jumbo' : count <= 3 ? 'xl' : 'lg');
     return (
-      <div className={`flex items-center flex-wrap gap-1.5 py-1 ${className}`}>
+      <div className={`flex items-center flex-wrap justify-start py-1 ${className}`}>
         {emojis.map((emoji, idx) => (
           <ChatFlowEmoji
             key={`${idx}-${emoji}`}

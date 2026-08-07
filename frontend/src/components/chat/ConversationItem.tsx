@@ -31,7 +31,7 @@ export function ConversationItem({ conversation, isActive, onClick }: Props) {
       case 'audio':
         return <span className="inline-flex items-center gap-1 text-emerald-400 font-medium"><Mic className="w-3.5 h-3.5 shrink-0" /> Voice message</span>;
       default: 
-        return <div className="truncate"><EmojiText text={msg.content || ''} /></div>;
+        return <div className="truncate"><EmojiText text={msg.content || ''} forceSize="sm" /></div>;
     }
   };
 

@@ -31,7 +31,7 @@ export function VoiceMessagePlayer({ src, durationSecs, fileName }: Props) {
     setHasError(false);
     setIsOfflineUnavailable(false);
 
-    mediaService.getSignedUrl(src, 'media').then((url) => {
+    mediaService.getSignedUrl(src, 'voice-messages').then((url) => {
       if (!active) return;
       if (!url) {
         if (!navigator.onLine) {

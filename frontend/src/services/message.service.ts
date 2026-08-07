@@ -11,5 +11,6 @@ export const messageService = {
   addReaction: async (messageId: string, emoji: string) => supabase.from('message_reactions').insert({ message_id: messageId, emoji }),
   removeReaction: async (messageId: string, emoji: string) => supabase.from('message_reactions').delete().match({ message_id: messageId, emoji }),
   markAsRead: async (messageId: string) => supabase.from('message_reads').insert({ message_id: messageId }),
+  markConversationAsRead: async (conversationId: string, userId: string) => supabase.from('messages').update({ status: 'read' }).eq('conversation_id', conversationId).neq('sender_id', userId).neq('status', 'read'),
   searchMessages: async (query: string) => supabase.from('messages').select('*').textSearch('content', query)
 };

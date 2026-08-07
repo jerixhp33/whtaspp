@@ -2,7 +2,9 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { Message, Profile, MessageAttachment } from '../types';
 import { supabase } from '../lib/supabase';
 import { messageCacheService } from '../services/offline/message-cache.service';
+import { messageService } from '../services/message.service';
 import { realUploadService, UploadCompleteResult } from '../services/realUploadService';
+import { useAuth } from './useAuth';
 
 const MESSAGE_SELECT_QUERY = `
   *,
@@ -14,6 +16,7 @@ const MESSAGE_SELECT_QUERY = `
 `;
 
 export const useMessages = (conversationId?: string) => {
+  const { user } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
   const [isOnline, setIsOnline] = useState<boolean>(
@@ -157,6 +160,11 @@ export const useMessages = (conversationId?: string) => {
             if (!error && data) {
               const freshMessages = data as unknown as Message[];
               setMessages(freshMessages);
+              
+              if (user) {
+                messageService.markConversationAsRead(conversationId, user.id).catch(console.error);
+              }
+
               // Save to IndexedDB
               await messageCacheService.cacheMessages(freshMessages);
             }
@@ -196,6 +204,10 @@ export const useMessages = (conversationId?: string) => {
           } else if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
             const newMsg = payload.new as any;
             await fetchFullMessage(newMsg.id);
+            
+            if (user && newMsg.sender_id !== user.id) {
+              messageService.markConversationAsRead(conversationId, user.id).catch(console.error);
+            }
           }
         }
       )

@@ -425,14 +425,22 @@ export function MessageBubble({
     if (isRead) {
       return (
         <span title="Read">
-          <CheckCheck className="w-3.5 h-3.5 text-sky-400 font-bold" />
+          <CheckCheck className="w-3.5 h-3.5 text-sky-400" />
+        </span>
+      );
+    }
+    
+    if (message.status === 'delivered') {
+      return (
+        <span title="Delivered">
+          <CheckCheck className="w-3.5 h-3.5 opacity-80" />
         </span>
       );
     }
 
     return (
       <span title="Sent">
-        <Check className="w-3.5 h-3.5 opacity-80" />
+        <CheckCheck className="w-3.5 h-3.5 opacity-80" />
       </span>
     );
   };

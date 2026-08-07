@@ -319,7 +319,7 @@ export function MessageComposer({
                 style={{ paddingRight: '0.25rem', paddingLeft: '0.125rem' }}
                 aria-hidden="true"
               >
-                {text && <EmojiText text={text + (text.endsWith('\n') ? ' ' : '')} animate={true} />}
+                {text && <EmojiText text={text + (text.endsWith('\n') ? ' ' : '')} animate={true} forceSize="md" />}
               </div>
               
               {/* Actual Editable Textarea (Transparent) */}

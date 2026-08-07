@@ -466,6 +466,15 @@ CREATE TRIGGER trg_notify_on_missed_call
   FOR EACH ROW
   EXECUTE PROCEDURE public.fn_notify_on_missed_call();
 
--- 10. Enable Supabase Realtime for notifications and devices
-ALTER PUBLICATION supabase_realtime ADD TABLE notifications;
-ALTER PUBLICATION supabase_realtime ADD TABLE notification_devices;
+-- 10. Enable Supabase Realtime for notifications and devices safely
+DO $$
+BEGIN
+  BEGIN
+    ALTER PUBLICATION supabase_realtime ADD TABLE notifications;
+  EXCEPTION WHEN OTHERS THEN NULL;
+  END;
+  BEGIN
+    ALTER PUBLICATION supabase_realtime ADD TABLE notification_devices;
+  EXCEPTION WHEN OTHERS THEN NULL;
+  END;
+END $$;

@@ -157,6 +157,9 @@ export function MessageComposer({
       textarea.focus();
     }, 0);
   };
+  const preventFocusLoss = (e: React.MouseEvent | React.TouchEvent) => {
+    e.preventDefault();
+  };
 
   const handleSendText = () => {
     if (!text.trim() || !activeConversation) return;
@@ -394,6 +397,8 @@ export function MessageComposer({
                   type="button"
                   size="icon"
                   onClick={handleSendText}
+                  onMouseDown={preventFocusLoss}
+                  onTouchStart={preventFocusLoss}
                   className="bg-white hover:bg-zinc-200 text-zinc-950 h-[48px] w-[48px] rounded-full shadow-lg active:scale-95 transition-transform"
                   title="Send message"
                   aria-label="Send message"

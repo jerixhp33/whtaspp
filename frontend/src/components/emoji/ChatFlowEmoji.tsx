@@ -23,7 +23,12 @@ export function ChatFlowEmoji({ unicode, size = 'md', className = '', animate = 
 
   let animationClass = animate ? 'animate-emoji-pop opacity-0' : '';
   if (continuousAnimation) {
-    animationClass += ' animate-emoji-jumbo hover:scale-110 transition-transform cursor-default';
+    // Standard red heart variants (fully qualified and unqualified)
+    if (unicode === '❤️' || unicode === '❤' || unicode.includes('\u2764')) {
+      animationClass += ' animate-emoji-heartbeat cursor-default';
+    } else {
+      animationClass += ' animate-emoji-jumbo hover:scale-110 transition-transform cursor-default';
+    }
   }
 
   if (loadFailed) {

@@ -466,7 +466,7 @@ export function MessageBubble({
     if (isRead) {
       return (
         <span title="Read">
-          <CheckCheck className="w-3.5 h-3.5 text-sky-400" />
+          <CheckCheck className="w-3.5 h-3.5 text-sky-400 animate-in zoom-in duration-300" />
         </span>
       );
     }
@@ -505,7 +505,7 @@ export function MessageBubble({
       id={`message-${message.id}`}
       className={`flex w-full ${
         isOwn ? 'justify-end' : 'justify-start'
-      } group relative my-0.5 transition-colors ${
+      } group relative my-0.5 transition-colors animate-in fade-in slide-in-from-bottom-2 duration-300 ${
         isSelected ? 'bg-emerald-500/10 rounded-xl p-1 -m-1' : ''
       }`}
       onTouchStart={handleTouchStart}

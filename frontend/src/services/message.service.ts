@@ -11,6 +11,19 @@ export const messageService = {
   addReaction: async (messageId: string, emoji: string) => supabase.from('message_reactions').insert({ message_id: messageId, emoji }),
   removeReaction: async (messageId: string, emoji: string) => supabase.from('message_reactions').delete().match({ message_id: messageId, emoji }),
   markAsRead: async (messageId: string) => supabase.from('message_reads').insert({ message_id: messageId }),
-  markConversationAsRead: async (conversationId: string, userId: string) => supabase.from('messages').update({ status: 'read' }).eq('conversation_id', conversationId).neq('sender_id', userId).neq('status', 'read'),
+  markConversationAsRead: async (conversationId: string, userId: string) => {
+    // 1. Get unread messages
+    const { data: unread } = await supabase
+      .from('messages')
+      .select('id')
+      .eq('conversation_id', conversationId)
+      .neq('sender_id', userId);
+    
+    if (unread && unread.length > 0) {
+      const reads = unread.map(m => ({ message_id: m.id, user_id: userId }));
+      return supabase.from('message_reads').upsert(reads, { onConflict: 'message_id,user_id', ignoreDuplicates: true });
+    }
+    return { data: null, error: null };
+  },
   searchMessages: async (query: string) => supabase.from('messages').select('*').textSearch('content', query)
 };

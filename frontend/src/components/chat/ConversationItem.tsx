@@ -2,6 +2,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { Image, Video, File, Mic } from 'lucide-react';
 import { Conversation } from '@/types';
 import { useAuth } from '@/hooks/useAuth';
+import { useChat } from '@/hooks/useChat';
 import { EmojiText } from '@/components/emoji/EmojiText';
 
 interface Props {
@@ -12,6 +13,8 @@ interface Props {
 
 export function ConversationItem({ conversation, isActive, onClick }: Props) {
   const { user } = useAuth();
+  const { typingUsernames } = useChat();
+  const isTyping = typingUsernames[conversation.id];
   
   const renderLastMessage = () => {
     if (!conversation.last_message) return 'No messages yet';
@@ -76,7 +79,11 @@ export function ConversationItem({ conversation, isActive, onClick }: Props) {
         </div>
         <div className="flex justify-between items-center">
           <div className="text-xs text-zinc-400 truncate">
-            {renderLastMessage()}
+            {isTyping ? (
+              <span className="text-emerald-400 font-medium">typing...</span>
+            ) : (
+              renderLastMessage()
+            )}
           </div>
           {conversation.unread_count > 0 && (
             <span className="bg-emerald-500 text-zinc-950 text-xs font-bold px-2 py-0.5 rounded-full ml-2">

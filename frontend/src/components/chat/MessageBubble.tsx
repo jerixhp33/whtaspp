@@ -514,13 +514,13 @@ export function MessageBubble({
           )}
 
           <div
-            className={`relative rounded-2xl shadow-sm ${
+            className={`relative shadow-sm ${
               isEmojiOnly
-                ? 'bg-transparent py-1 shadow-none'
-                : `px-3.5 py-2 ${
+                ? 'bg-transparent py-1 shadow-none rounded-2xl'
+                : `px-3 py-1.5 text-[15px] leading-snug ${
                     isOwn
-                      ? 'bg-emerald-600 text-white rounded-br-xs'
-                      : 'bg-zinc-800 text-zinc-100 rounded-bl-xs'
+                      ? 'bg-emerald-600 text-white rounded-2xl rounded-tr-sm'
+                      : 'bg-[#202c33] text-zinc-100 rounded-2xl rounded-tl-sm'
                   }`
             }`}
           >

@@ -177,17 +177,51 @@ export interface CallParticipant {
 }
 
 // Notifications
-export type NotificationType = 'message' | 'mention' | 'call' | 'missed_call' | 'contact_request' | 'group_invite' | 'group_activity' | 'system';
+export type NotificationType =
+  | 'message'
+  | 'mention'
+  | 'reply'
+  | 'reaction'
+  | 'forward'
+  | 'contact_request'
+  | 'contact_accepted'
+  | 'call_incoming'
+  | 'call_missed'
+  | 'group_invite'
+  | 'group_added'
+  | 'group_removed'
+  | 'group_admin'
+  | 'system';
 
 export interface Notification {
   id: string;
   user_id: string;
+  actor_id?: string;
   type: NotificationType;
+  conversation_id?: string;
+  message_id?: string;
   title: string;
   body?: string;
+  metadata: Record<string, any>;
   data: Record<string, any>;
   is_read: boolean;
+  read_at?: string;
   created_at: string;
+}
+
+export interface NotificationDevice {
+  id: string;
+  user_id: string;
+  platform: 'web' | 'android' | 'ios';
+  device_id: string;
+  push_token?: string;
+  endpoint?: string;
+  public_key?: string;
+  auth_key?: string;
+  is_active: boolean;
+  last_seen_at: string;
+  created_at: string;
+  updated_at: string;
 }
 
 // Settings
@@ -201,6 +235,14 @@ export interface UserSettings {
   message_preview: boolean;
   enter_to_send: boolean;
   media_auto_download: boolean;
+  notify_messages: boolean;
+  notify_groups: boolean;
+  notify_mentions: boolean;
+  notify_replies: boolean;
+  notify_reactions: boolean;
+  notify_requests: boolean;
+  notify_calls: boolean;
+  vibration_enabled: boolean;
 }
 
 export interface PrivacySettings {

@@ -1,14 +1,20 @@
-import { Search, Plus, Users, Shield, Settings, LogOut, MessageSquarePlus, UserPlus } from 'lucide-react';
+import { Search, Plus, Users, Shield, Settings, LogOut, MessageSquarePlus, UserPlus, Bell } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { ConversationItem } from './ConversationItem';
 import { useChat } from '@/hooks/useChat';
 import { useAuth } from '@/hooks/useAuth';
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { NewChatDialog } from './NewChatDialog';
 import { CreateGroupDialog } from '../groups/CreateGroupDialog';
+import { NotificationBadge } from '@/components/notifications/NotificationBadge';
+import { NotificationDropdown } from '@/components/notifications/NotificationDropdown';
+import { InAppToastContainer, showToast } from '@/components/notifications/InAppToast';
+import { useNotifications } from '@/hooks/useNotifications';
+import { notificationService } from '@/services/notification.service';
+import type { Notification } from '@/types';
 
 export function ConversationList() {
   const { conversations, activeConversation, setActiveConversation } = useChat();
@@ -18,10 +24,70 @@ export function ConversationList() {
   const [search, setSearch] = useState('');
   const [isNewChatOpen, setIsNewChatOpen] = useState(false);
   const [isCreateGroupOpen, setIsCreateGroupOpen] = useState(false);
+  const [isNotifOpen, setIsNotifOpen] = useState(false);
+
+  const handleNewNotification = useCallback((notification: Notification) => {
+    // Show in-app toast
+    showToast(notification);
+    // Play notification sound (respect user settings)
+    notificationService.playNotificationSound();
+    // Send browser notification if app is not focused
+    if (document.hidden) {
+      notificationService.sendBrowserNotification(
+        notification.title,
+        notification.body,
+        notification.metadata
+      );
+    }
+  }, []);
+
+  const {
+    notifications,
+    unreadCount,
+    markAsRead,
+    markAllAsRead,
+    loadMore,
+    hasMore,
+    loading: notifLoading,
+  } = useNotifications(
+    user?.id,
+    activeConversation?.id,
+    handleNewNotification
+  );
 
   const handleSignOut = async () => {
+    // Unregister push device on logout
+    if (user?.id) {
+      const deviceId = notificationService.getDeviceId();
+      await notificationService.unregisterDevice(user.id, deviceId);
+    }
     await supabase.auth.signOut();
     navigate('/login');
+  };
+
+  const handleNotificationClick = (notif: Notification) => {
+    markAsRead(notif.id);
+    setIsNotifOpen(false);
+
+    if (notif.conversation_id) {
+      const conv = conversations.find((c) => c.id === notif.conversation_id);
+      if (conv) {
+        setActiveConversation(conv);
+        // Deep link to message
+        if (notif.message_id) {
+          setTimeout(() => {
+            const el = document.getElementById(`message-${notif.message_id}`);
+            if (el) {
+              el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              el.classList.add('notification-target-highlight');
+              setTimeout(() => el.classList.remove('notification-target-highlight'), 5000);
+            }
+          }, 500);
+        }
+      }
+    } else if (notif.type === 'contact_request' || notif.type === 'contact_accepted') {
+      navigate('/contacts');
+    }
   };
 
   const filteredConversations = conversations.filter(c => {
@@ -80,6 +146,33 @@ export function ConversationList() {
                 <Shield className="h-5 w-5" />
               </Button>
             )}
+            {/* Notification Bell */}
+            <div className="relative">
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-8 w-8 text-zinc-400 hover:text-white"
+                title="Notifications"
+                onClick={() => setIsNotifOpen(!isNotifOpen)}
+              >
+                <Bell className="h-5 w-5" />
+                <NotificationBadge count={unreadCount} />
+              </Button>
+              <NotificationDropdown
+                isOpen={isNotifOpen}
+                notifications={notifications}
+                onViewAll={() => {
+                  setIsNotifOpen(false);
+                  navigate('/notifications');
+                }}
+                onMarkAllAsRead={markAllAsRead}
+                onNotificationClick={handleNotificationClick}
+                onClose={() => setIsNotifOpen(false)}
+                onLoadMore={loadMore}
+                hasMore={hasMore}
+                loading={notifLoading}
+              />
+            </div>
             <Button 
               size="icon" 
               variant="ghost" 
@@ -162,6 +255,9 @@ export function ConversationList() {
 
       <NewChatDialog isOpen={isNewChatOpen} onClose={() => setIsNewChatOpen(false)} />
       <CreateGroupDialog isOpen={isCreateGroupOpen} onClose={() => setIsCreateGroupOpen(false)} />
+
+      {/* In-App Toast Container (Portal) */}
+      <InAppToastContainer onToastClick={handleNotificationClick} />
     </div>
   );
 }

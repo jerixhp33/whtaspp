@@ -81,3 +81,88 @@ self.addEventListener('fetch', (event) => {
     })
   );
 });
+
+// ============================================================
+// Push Notification Handler
+// ============================================================
+self.addEventListener('push', (event) => {
+  let data = { title: 'ChatFlow', body: 'New notification', icon: '/icons/icon-192.png' };
+
+  try {
+    if (event.data) {
+      const payload = event.data.json();
+      data = {
+        title: payload.title || 'ChatFlow',
+        body: payload.body || 'New notification',
+        icon: payload.icon || '/icons/icon-192.png',
+        badge: payload.badge || '/icons/icon-192.png',
+        tag: payload.tag || 'chatflow-notification',
+        data: payload.data || {},
+        actions: payload.actions || [],
+        vibrate: [200, 100, 200],
+        requireInteraction: payload.data?.type === 'call_incoming',
+      };
+    }
+  } catch (e) {
+    // Use defaults
+  }
+
+  event.waitUntil(
+    self.registration.showNotification(data.title, {
+      body: data.body,
+      icon: data.icon,
+      badge: data.badge,
+      tag: data.tag,
+      data: data.data,
+      actions: data.actions,
+      vibrate: data.vibrate,
+      requireInteraction: data.requireInteraction,
+    })
+  );
+});
+
+// ============================================================
+// Notification Click Handler — Deep Link to Correct Content
+// ============================================================
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+
+  const notifData = event.notification.data || {};
+  let targetUrl = '/';
+
+  if (notifData.conversation_id) {
+    targetUrl = `/?conversation=${notifData.conversation_id}`;
+    if (notifData.message_id) {
+      targetUrl += `&message=${notifData.message_id}`;
+    }
+  } else if (notifData.type === 'contact_request' || notifData.type === 'contact_accepted') {
+    targetUrl = '/contacts';
+  } else if (notifData.type === 'call_missed') {
+    targetUrl = notifData.conversation_id
+      ? `/?conversation=${notifData.conversation_id}`
+      : '/';
+  }
+
+  event.waitUntil(
+    self.clients
+      .matchAll({ type: 'window', includeUncontrolled: true })
+      .then((clientList) => {
+        // Focus existing ChatFlow window if available
+        for (const client of clientList) {
+          if (client.url.includes(self.location.origin) && 'focus' in client) {
+            client.focus();
+            client.postMessage({
+              type: 'NOTIFICATION_CLICK',
+              data: notifData,
+              url: targetUrl,
+            });
+            return;
+          }
+        }
+        // Open new window if no existing client
+        if (self.clients.openWindow) {
+          return self.clients.openWindow(targetUrl);
+        }
+      })
+  );
+});

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Download, FileText, ExternalLink, Loader2, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { mediaService } from '@/services/media.service';
@@ -63,8 +64,8 @@ export function DocumentViewerModal({ isOpen, onClose, fileUrl, fileName, fileSi
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex flex-col select-none animate-in fade-in duration-150">
+  return createPortal(
+    <div className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-md flex flex-col select-none animate-in fade-in duration-150">
       {/* Top Navigation Bar */}
       <div className="h-14 px-4 bg-zinc-950/90 border-b border-zinc-800 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3 min-w-0">
@@ -170,6 +171,7 @@ export function DocumentViewerModal({ isOpen, onClose, fileUrl, fileName, fileSi
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

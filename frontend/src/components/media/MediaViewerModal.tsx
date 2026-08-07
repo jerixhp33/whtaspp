@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { X, ZoomIn, ZoomOut, RotateCcw, Download, Share2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { mediaService } from '@/services/media.service';
@@ -145,11 +146,11 @@ export function MediaViewerModal({ items, initialIndex = 0, isOpen, onClose }: P
     }
   };
 
-  return (
+  return createPortal(
     <div
       ref={containerRef}
       onMouseUp={handleMouseUp}
-      className="fixed inset-0 z-50 flex flex-col justify-between bg-black/95 backdrop-blur-xl text-white select-none animate-in fade-in duration-200"
+      className="fixed inset-0 z-[100] flex flex-col justify-between bg-black/95 backdrop-blur-xl text-white select-none animate-in fade-in duration-200"
     >
       {/* Top Action Bar */}
       <div className="p-4 flex items-center justify-between z-20 bg-gradient-to-b from-black/80 to-transparent">
@@ -291,6 +292,7 @@ export function MediaViewerModal({ items, initialIndex = 0, isOpen, onClose }: P
       <div className="p-4 text-center text-xs text-zinc-400 z-20 bg-gradient-to-t from-black/80 to-transparent">
         <span>Press ESC to close • Use ← / → arrows to navigate</span>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

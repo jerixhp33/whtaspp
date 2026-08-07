@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, createContext, useContext, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './useAuth';
 
@@ -10,6 +10,52 @@ export interface CallUser {
 
 export type CallStatus = 'idle' | 'calling' | 'ringing' | 'connecting' | 'connected' | 'ended';
 
+export interface IncomingCallData {
+  callId: string;
+  caller: CallUser;
+  isVideo: boolean;
+  offerSdp?: any;
+  conversationId: string;
+}
+
+interface CallContextType {
+  localStream: MediaStream | null;
+  remoteStream: MediaStream | null;
+  callStatus: CallStatus;
+  isVideoCall: boolean;
+  remoteUser: CallUser | null;
+  callDuration: number;
+  isMuted: boolean;
+  isCameraOff: boolean;
+  incomingCall: IncomingCallData | null;
+  startCall: (targetUser: CallUser, conversationId: string, isVideo: boolean) => Promise<void>;
+  answerCall: () => Promise<void>;
+  rejectCall: () => void;
+  endCall: () => void;
+  toggleMute: () => void;
+  toggleCamera: () => void;
+}
+
+const CallContext = createContext<CallContextType>({
+  localStream: null,
+  remoteStream: null,
+  callStatus: 'idle',
+  isVideoCall: false,
+  remoteUser: null,
+  callDuration: 0,
+  isMuted: false,
+  isCameraOff: false,
+  incomingCall: null,
+  startCall: async () => {},
+  answerCall: async () => {},
+  rejectCall: () => {},
+  endCall: () => {},
+  toggleMute: () => {},
+  toggleCamera: () => {},
+});
+
+export const useWebRTC = () => useContext(CallContext);
+
 const ICE_SERVERS: RTCConfiguration = {
   iceServers: [
     { urls: 'stun:stun.l.google.com:19302' },
@@ -18,7 +64,7 @@ const ICE_SERVERS: RTCConfiguration = {
   ]
 };
 
-export const useWebRTC = () => {
+export function CallProvider({ children }: { children: React.ReactNode }) {
   const { user, profile } = useAuth();
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
@@ -28,53 +74,145 @@ export const useWebRTC = () => {
   const [callDuration, setCallDuration] = useState(0);
   const [isMuted, setIsMuted] = useState(false);
   const [isCameraOff, setIsCameraOff] = useState(false);
-  const [incomingCall, setIncomingCall] = useState<{
-    callId?: string;
-    caller: CallUser;
-    isVideo: boolean;
-    offerSdp: any;
-    conversationId: string;
-  } | null>(null);
+  const [incomingCall, setIncomingCall] = useState<IncomingCallData | null>(null);
 
   const pcRef = useRef<RTCPeerConnection | null>(null);
-  const channelRef = useRef<any>(null);
+  const activeRoomChannelRef = useRef<any>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const pendingOfferRef = useRef<any>(null);
   const currentCallIdRef = useRef<string | null>(null);
-  const activeConvIdRef = useRef<string | null>(null);
+  const pendingOfferRef = useRef<any>(null);
 
-  // Global signaling channel listener for incoming call offers/answers
+  const startDurationTimer = () => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    setCallDuration(0);
+    timerRef.current = setInterval(() => {
+      setCallDuration((d) => d + 1);
+    }, 1000);
+  };
+
+  const cleanupCall = useCallback(() => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    if (localStream) {
+      localStream.getTracks().forEach((t) => t.stop());
+    }
+    if (pcRef.current) {
+      pcRef.current.close();
+      pcRef.current = null;
+    }
+
+    if (activeRoomChannelRef.current) {
+      activeRoomChannelRef.current.send({
+        type: 'broadcast',
+        event: 'call_ended',
+        payload: { sender_id: user?.id }
+      });
+      supabase.removeChannel(activeRoomChannelRef.current);
+      activeRoomChannelRef.current = null;
+    }
+
+    if (currentCallIdRef.current) {
+      supabase
+        .from('calls')
+        .update({ status: 'ended', ended_at: new Date().toISOString() })
+        .eq('id', currentCallIdRef.current)
+        .then(() => {
+          currentCallIdRef.current = null;
+        });
+    }
+
+    setLocalStream(null);
+    setRemoteStream(null);
+    setCallStatus('idle');
+    setRemoteUser(null);
+    setIncomingCall(null);
+    setCallDuration(0);
+    setIsMuted(false);
+    setIsCameraOff(false);
+    pendingOfferRef.current = null;
+  }, [localStream, user?.id]);
+
+  // Global Supabase Realtime Listener for new calls inserted in calls table
   useEffect(() => {
     if (!user?.id) return;
 
-    const channel = supabase.channel(`user-call-signals-${user.id}`);
-    channelRef.current = channel;
+    const callsChannel = supabase
+      .channel('global-calls-monitor')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'calls'
+        },
+        async (payload) => {
+          const newCall = payload.new as any;
+          if (newCall.created_by === user.id) return; // skip own calls
 
-    channel
-      .on('broadcast', { event: 'call_offer' }, async ({ payload }) => {
-        if (callStatus !== 'idle') {
-          // Reject if busy
-          channel.send({
-            type: 'broadcast',
-            event: 'call_busy',
-            payload: { caller_id: payload.caller_id }
-          });
-          return;
+          // Check if current user is a member of this conversation
+          const { data: memberData } = await supabase
+            .from('conversation_members')
+            .select('user_id')
+            .eq('conversation_id', newCall.conversation_id)
+            .eq('user_id', user.id)
+            .maybeSingle();
+
+          if (memberData) {
+            // Fetch caller profile
+            const { data: callerProfile } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', newCall.created_by)
+              .maybeSingle();
+
+            const callerName = callerProfile?.display_name || callerProfile?.username || 'Incoming Call';
+            const callerAvatar = callerProfile?.avatar_url;
+
+            currentCallIdRef.current = newCall.id;
+            setIncomingCall({
+              callId: newCall.id,
+              caller: { id: newCall.created_by, name: callerName, avatarUrl: callerAvatar },
+              isVideo: newCall.call_type === 'video',
+              conversationId: newCall.conversation_id
+            });
+            setCallStatus('ringing');
+
+            // Join call room channel to listen for SDP offer and candidates
+            joinCallRoom(newCall.id);
+          }
         }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'calls'
+        },
+        (payload) => {
+          const updatedCall = payload.new as any;
+          if (updatedCall.id === currentCallIdRef.current && updatedCall.status === 'ended') {
+            cleanupCall();
+          }
+        }
+      )
+      .subscribe();
 
-        setIncomingCall({
-          callId: payload.call_id,
-          caller: {
-            id: payload.caller_id,
-            name: payload.caller_name || 'Incoming Call',
-            avatarUrl: payload.caller_avatar
-          },
-          isVideo: payload.is_video,
-          offerSdp: payload.sdp,
-          conversationId: payload.conversation_id
-        });
-        pendingOfferRef.current = payload;
-        setCallStatus('ringing');
+    return () => {
+      supabase.removeChannel(callsChannel);
+    };
+  }, [user?.id, cleanupCall]);
+
+  const joinCallRoom = (callId: string) => {
+    if (activeRoomChannelRef.current) {
+      supabase.removeChannel(activeRoomChannelRef.current);
+    }
+
+    const roomChan = supabase.channel(`call-room-${callId}`);
+    activeRoomChannelRef.current = roomChan;
+
+    roomChan
+      .on('broadcast', { event: 'call_offer' }, async ({ payload }) => {
+        pendingOfferRef.current = payload.sdp;
       })
       .on('broadcast', { event: 'call_answer' }, async ({ payload }) => {
         if (pcRef.current && payload.sdp) {
@@ -102,23 +240,7 @@ export const useWebRTC = () => {
       .on('broadcast', { event: 'call_rejected' }, () => {
         cleanupCall();
       })
-      .on('broadcast', { event: 'call_busy' }, () => {
-        alert('User is currently on another call.');
-        cleanupCall();
-      })
       .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [user?.id, callStatus]);
-
-  const startDurationTimer = () => {
-    if (timerRef.current) clearInterval(timerRef.current);
-    setCallDuration(0);
-    timerRef.current = setInterval(() => {
-      setCallDuration((d) => d + 1);
-    }, 1000);
   };
 
   const createPeerConnection = (targetUserId: string) => {
@@ -126,8 +248,8 @@ export const useWebRTC = () => {
     pcRef.current = pc;
 
     pc.onicecandidate = (event) => {
-      if (event.candidate && targetUserId) {
-        supabase.channel(`user-call-signals-${targetUserId}`).send({
+      if (event.candidate && activeRoomChannelRef.current) {
+        activeRoomChannelRef.current.send({
           type: 'broadcast',
           event: 'ice_candidate',
           payload: { candidate: event.candidate, sender_id: user?.id }
@@ -160,7 +282,6 @@ export const useWebRTC = () => {
     setIsVideoCall(isVideo);
     setRemoteUser(targetUser);
     setCallStatus('calling');
-    activeConvIdRef.current = conversationId;
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -169,14 +290,8 @@ export const useWebRTC = () => {
       });
       setLocalStream(stream);
 
-      const pc = createPeerConnection(targetUser.id);
-      stream.getTracks().forEach((track) => pc.addTrack(track, stream));
-
-      const offer = await pc.createOffer();
-      await pc.setLocalDescription(offer);
-
-      // Create record in calls table
-      const { data: callData } = await supabase
+      // Create record in calls table (which triggers global realtime monitor on recipient device)
+      const { data: callData, error: callErr } = await supabase
         .from('calls')
         .insert({
           conversation_id: conversationId,
@@ -187,24 +302,25 @@ export const useWebRTC = () => {
         .select('id')
         .single();
 
-      if (callData) currentCallIdRef.current = callData.id;
+      if (callErr || !callData) throw callErr || new Error('Failed to create call record');
 
-      // Broadcast call offer signal to recipient's personal channel
-      const targetChan = supabase.channel(`user-call-signals-${targetUser.id}`);
-      targetChan.subscribe((status) => {
+      currentCallIdRef.current = callData.id;
+
+      // Join room channel and broadcast SDP offer
+      joinCallRoom(callData.id);
+
+      const pc = createPeerConnection(targetUser.id);
+      stream.getTracks().forEach((track) => pc.addTrack(track, stream));
+
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+
+      activeRoomChannelRef.current.subscribe((status: string) => {
         if (status === 'SUBSCRIBED') {
-          targetChan.send({
+          activeRoomChannelRef.current.send({
             type: 'broadcast',
             event: 'call_offer',
-            payload: {
-              call_id: callData?.id,
-              caller_id: user.id,
-              caller_name: profile?.display_name || profile?.username || 'Chat User',
-              caller_avatar: profile?.avatar_url,
-              is_video: isVideo,
-              sdp: offer,
-              conversation_id: conversationId
-            }
+            payload: { sdp: offer, caller_id: user.id }
           });
         }
       });
@@ -217,9 +333,6 @@ export const useWebRTC = () => {
 
   const answerCall = async () => {
     if (!incomingCall || !user) return;
-    const offerPayload = pendingOfferRef.current;
-    if (!offerPayload) return;
-
     setIsVideoCall(incomingCall.isVideo);
     setRemoteUser(incomingCall.caller);
     setCallStatus('connecting');
@@ -234,21 +347,21 @@ export const useWebRTC = () => {
       const pc = createPeerConnection(incomingCall.caller.id);
       stream.getTracks().forEach((track) => pc.addTrack(track, stream));
 
-      await pc.setRemoteDescription(new RTCSessionDescription(offerPayload.sdp));
+      const offerSdp = pendingOfferRef.current;
+      if (offerSdp) {
+        await pc.setRemoteDescription(new RTCSessionDescription(offerSdp));
+      }
+
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
 
-      // Send answer back to caller
-      const targetChan = supabase.channel(`user-call-signals-${incomingCall.caller.id}`);
-      targetChan.subscribe((status) => {
-        if (status === 'SUBSCRIBED') {
-          targetChan.send({
-            type: 'broadcast',
-            event: 'call_answer',
-            payload: { sdp: answer, responder_id: user.id }
-          });
-        }
-      });
+      if (activeRoomChannelRef.current) {
+        activeRoomChannelRef.current.send({
+          type: 'broadcast',
+          event: 'call_answer',
+          payload: { sdp: answer, responder_id: user.id }
+        });
+      }
 
       setIncomingCall(null);
       setCallStatus('connected');
@@ -260,63 +373,15 @@ export const useWebRTC = () => {
   };
 
   const rejectCall = () => {
-    if (incomingCall) {
-      const targetChan = supabase.channel(`user-call-signals-${incomingCall.caller.id}`);
-      targetChan.subscribe((status) => {
-        if (status === 'SUBSCRIBED') {
-          targetChan.send({
-            type: 'broadcast',
-            event: 'call_rejected',
-            payload: { responder_id: user?.id }
-          });
-        }
+    if (activeRoomChannelRef.current) {
+      activeRoomChannelRef.current.send({
+        type: 'broadcast',
+        event: 'call_rejected',
+        payload: { responder_id: user?.id }
       });
     }
     cleanupCall();
   };
-
-  const cleanupCall = useCallback(() => {
-    if (timerRef.current) clearInterval(timerRef.current);
-    if (localStream) {
-      localStream.getTracks().forEach((t) => t.stop());
-    }
-    if (pcRef.current) {
-      pcRef.current.close();
-      pcRef.current = null;
-    }
-
-    if (currentCallIdRef.current) {
-      supabase
-        .from('calls')
-        .update({ status: 'ended', ended_at: new Date().toISOString() })
-        .eq('id', currentCallIdRef.current)
-        .then(() => {
-          currentCallIdRef.current = null;
-        });
-    }
-
-    if (remoteUser?.id) {
-      const targetChan = supabase.channel(`user-call-signals-${remoteUser.id}`);
-      targetChan.subscribe((status) => {
-        if (status === 'SUBSCRIBED') {
-          targetChan.send({
-            type: 'broadcast',
-            event: 'call_ended',
-            payload: { sender_id: user?.id }
-          });
-        }
-      });
-    }
-
-    setLocalStream(null);
-    setRemoteStream(null);
-    setCallStatus('idle');
-    setRemoteUser(null);
-    setIncomingCall(null);
-    setCallDuration(0);
-    setIsMuted(false);
-    setIsCameraOff(false);
-  }, [localStream, remoteUser, user]);
 
   const toggleMute = () => {
     if (localStream) {
@@ -338,7 +403,7 @@ export const useWebRTC = () => {
     }
   };
 
-  return {
+  const value = {
     localStream,
     remoteStream,
     callStatus,
@@ -355,4 +420,6 @@ export const useWebRTC = () => {
     toggleMute,
     toggleCamera
   };
-};
+
+  return React.createElement(CallContext.Provider, { value }, children);
+}

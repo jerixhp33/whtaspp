@@ -5,30 +5,11 @@ import { MessageComposer } from './MessageComposer';
 import { useChat } from '@/hooks/useChat';
 import { Message, Profile } from '@/types';
 import { useWebRTC } from '@/hooks/useWebRTC';
-import { CallView } from '@/components/calls/CallView';
-import { IncomingCallDialog } from '@/components/calls/IncomingCallDialog';
 
 export function ChatView({ onToggleDetails }: { onToggleDetails?: () => void }) {
   const { activeConversation } = useChat();
   const [replyMessage, setReplyMessage] = useState<Message | null>(null);
-  
-  const {
-    localStream,
-    remoteStream,
-    callStatus,
-    isVideoCall,
-    remoteUser,
-    callDuration,
-    isMuted,
-    isCameraOff,
-    incomingCall,
-    startCall,
-    answerCall,
-    rejectCall,
-    endCall,
-    toggleMute,
-    toggleCamera
-  } = useWebRTC();
+  const { startCall } = useWebRTC();
 
   if (!activeConversation) return null;
 
@@ -66,34 +47,6 @@ export function ChatView({ onToggleDetails }: { onToggleDetails?: () => void }) 
           onClearReply={() => setReplyMessage(null)}
         />
       </div>
-
-      {/* Incoming Call Dialog */}
-      {incomingCall && (
-        <IncomingCallDialog
-          caller={incomingCall.caller}
-          isVideoCall={incomingCall.isVideo}
-          onAccept={answerCall}
-          onReject={rejectCall}
-        />
-      )}
-
-      {/* Active WebRTC Voice/Video Call Interface */}
-      {callStatus !== 'idle' && remoteUser && (
-        <CallView
-          remoteUser={remoteUser}
-          isVideoCall={isVideoCall}
-          duration={callDuration}
-          status={callStatus === 'calling' ? 'ringing' : 'connected'}
-          localStream={localStream}
-          remoteStream={remoteStream}
-          isMuted={isMuted}
-          isCameraOff={isCameraOff}
-          onToggleMute={toggleMute}
-          onToggleCamera={toggleCamera}
-          onEndCall={endCall}
-          onMinimize={endCall}
-        />
-      )}
     </div>
   );
 }

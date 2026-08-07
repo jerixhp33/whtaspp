@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './hooks/useAuth';
 import { ChatProvider } from './hooks/useChat';
 import { CallProvider } from './hooks/useWebRTC';
@@ -40,6 +40,8 @@ function App() {
                 <Route element={<MainLayout />}>
                   <Route path="/" element={<ChatPage />} />
                   <Route path="/settings" element={<SettingsPage />} />
+                  <Route path="/settings/permissions" element={<SettingsPage />} />
+                  <Route path="/permissions" element={<SettingsPage />} />
                 </Route>
                 
                 <Route path="/admin" element={<AdminRoute />}>
@@ -53,6 +55,9 @@ function App() {
                   </Route>
                 </Route>
               </Route>
+
+              {/* Fallback route */}
+              <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </BrowserRouter>
         </CallProvider>

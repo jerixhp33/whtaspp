@@ -3,25 +3,23 @@ import { ConversationList } from '@/components/chat/ConversationList';
 import { ChatView } from '@/components/chat/ChatView';
 import { ChatDetails } from '@/components/chat/ChatDetails';
 import { useChat } from '@/hooks/useChat';
-import { PermissionsModal } from '@/components/shared/PermissionsModal';
+import { PermissionSetupModal } from '@/components/permissions/PermissionSetupModal';
+import { OfflineBanner } from '@/components/shared/OfflineBanner';
 
 export function ChatPage() {
   const { activeConversation } = useChat();
   const [detailsOpen, setDetailsOpen] = useState(false);
-  const [showPermissions, setShowPermissions] = useState(() => {
-    const prompted = localStorage.getItem('permissions_prompted');
-    return !prompted;
+  const [showSetup, setShowSetup] = useState(() => {
+    const completed = localStorage.getItem('chatflow_setup_completed');
+    return !completed;
   });
 
   const toggleDetails = () => setDetailsOpen(!detailsOpen);
 
-  const handleClosePermissions = () => {
-    localStorage.setItem('permissions_prompted', 'true');
-    setShowPermissions(false);
-  };
-
   return (
     <div className="flex h-[100dvh] w-full bg-zinc-950 text-zinc-100 overflow-hidden relative">
+      <OfflineBanner />
+
       {/* Sidebar - Conversation List */}
       <div className={`w-full md:w-80 lg:w-96 border-r border-zinc-800 flex flex-col transition-all h-[100dvh] shrink-0 ${activeConversation ? 'hidden md:flex' : 'flex'}`}>
         <ConversationList />
@@ -51,8 +49,8 @@ export function ChatPage() {
         </div>
       )}
 
-      {/* Permissions Modal after login */}
-      <PermissionsModal isOpen={showPermissions} onClose={handleClosePermissions} />
+      {/* Post-Login Permission Setup Center */}
+      <PermissionSetupModal isOpen={showSetup} onComplete={() => setShowSetup(false)} />
     </div>
   );
 }

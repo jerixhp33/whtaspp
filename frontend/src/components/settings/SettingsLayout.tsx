@@ -1,21 +1,43 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
-import { User, Lock, Bell, Palette, Shield, ArrowLeft } from 'lucide-react';
+import { User, Lock, Bell, Palette, Shield, ArrowLeft, ShieldCheck } from 'lucide-react';
 import { PrivacySettings } from './PrivacySettings';
 import { NotificationSettings } from './NotificationSettings';
 import { AppearanceSettings } from './AppearanceSettings';
 import { AccountSettings } from './AccountSettings';
+import { PermissionsSettings } from './PermissionsSettings';
 import { ProfileEdit } from '../profile/ProfileEdit';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 
-type SettingsSection = 'profile' | 'privacy' | 'notifications' | 'appearance' | 'account';
+type SettingsSection = 'profile' | 'privacy' | 'notifications' | 'appearance' | 'account' | 'permissions';
 
-export const SettingsLayout: React.FC = () => {
-  const [activeSection, setActiveSection] = useState<SettingsSection>('profile');
+interface Props {
+  initialSection?: SettingsSection;
+}
+
+export const SettingsLayout: React.FC<Props> = ({ initialSection }) => {
+  const location = useLocation();
   const navigate = useNavigate();
+
+  const getSectionFromPath = (): SettingsSection => {
+    if (initialSection) return initialSection;
+    if (location.pathname.includes('/permissions')) return 'permissions';
+    if (location.pathname.includes('/privacy')) return 'privacy';
+    if (location.pathname.includes('/notifications')) return 'notifications';
+    if (location.pathname.includes('/appearance')) return 'appearance';
+    if (location.pathname.includes('/account')) return 'account';
+    return 'profile';
+  };
+
+  const [activeSection, setActiveSection] = useState<SettingsSection>(getSectionFromPath());
+
+  useEffect(() => {
+    setActiveSection(getSectionFromPath());
+  }, [location.pathname, initialSection]);
 
   const navItems = [
     { id: 'profile', label: 'Profile', icon: User },
+    { id: 'permissions', label: 'Permissions', icon: ShieldCheck },
     { id: 'privacy', label: 'Privacy', icon: Shield },
     { id: 'notifications', label: 'Notifications', icon: Bell },
     { id: 'appearance', label: 'Appearance', icon: Palette },
@@ -26,6 +48,8 @@ export const SettingsLayout: React.FC = () => {
     switch (activeSection) {
       case 'profile':
         return <ProfileEdit />;
+      case 'permissions':
+        return <PermissionsSettings />;
       case 'privacy':
         return <PrivacySettings />;
       case 'notifications':
@@ -68,7 +92,14 @@ export const SettingsLayout: React.FC = () => {
             {navItems.map((item) => (
               <button
                 key={item.id}
-                onClick={() => setActiveSection(item.id)}
+                onClick={() => {
+                  setActiveSection(item.id);
+                  if (item.id === 'permissions') {
+                    navigate('/settings/permissions');
+                  } else {
+                    navigate('/settings');
+                  }
+                }}
                 className={cn(
                   "flex items-center gap-2 rounded-lg px-3.5 py-2.5 text-sm font-medium transition-colors whitespace-nowrap flex-shrink-0",
                   activeSection === item.id

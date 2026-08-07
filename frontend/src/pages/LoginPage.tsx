@@ -1,4 +1,5 @@
 import { LoginForm } from '@/components/auth/LoginForm';
+import { InstallAppCard } from '@/components/pwa/InstallAppCard';
 import { MessageCircle, Shield, Sparkles } from 'lucide-react';
 
 export function LoginPage() {
@@ -24,8 +25,9 @@ export function LoginPage() {
       </div>
 
       {/* Main Login Card */}
-      <div className="w-full relative z-10">
+      <div className="w-full max-w-md relative z-10 space-y-4">
         <LoginForm />
+        <InstallAppCard />
       </div>
 
       {/* Footer Info */}

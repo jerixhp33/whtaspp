@@ -386,7 +386,8 @@ export const useMessages = (conversationId?: string) => {
     replyToMessage?: Message | null,
     currentUser?: any,
     currentProfile?: Profile | null,
-    customFileName?: string
+    customFileName?: string,
+    durationSecs?: number
   ) => {
     if (!conversationId || !currentUser) return;
 
@@ -403,6 +404,7 @@ export const useMessages = (conversationId?: string) => {
       file_size: file.size,
       file_url: localPreviewUrl,
       created_at: new Date().toISOString(),
+      duration: durationSecs,
     };
 
     const optimisticMsg: Message = {
@@ -456,6 +458,7 @@ export const useMessages = (conversationId?: string) => {
       fileType: file.type || 'application/octet-stream',
       fileSize: file.size,
       bucket,
+      duration: durationSecs,
       onProgress: (pct) => {
         setMessages((prev) =>
           prev.map((m) =>
@@ -481,7 +484,7 @@ export const useMessages = (conversationId?: string) => {
               client_message_id: clientMsgId,
               storage_path: result.storage_path,
               bucket: result.bucket,
-              duration: result.duration,
+              duration: result.duration || durationSecs,
             },
           };
 
@@ -507,7 +510,7 @@ export const useMessages = (conversationId?: string) => {
               file_size: result.file_size,
               file_url: result.storage_path, // Store safe storage path, not raw URL
               thumbnail_url: result.thumbnail_path,
-              duration: result.duration,
+              duration: result.duration || durationSecs,
             })
             .select('*')
             .single();

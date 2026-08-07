@@ -24,7 +24,8 @@ interface Props {
     file: File | Blob,
     messageType: 'image' | 'video' | 'audio' | 'voice' | 'document',
     caption?: string,
-    replyTo?: Message | null
+    replyTo?: Message | null,
+    duration?: number
   ) => void;
   onSaveEdit?: (messageId: string, newContent: string) => void;
 }
@@ -188,7 +189,8 @@ export function MessageComposer({
         audioBlob,
         'voice',
         `Voice message (${durationSecs}s)`,
-        replyMessage
+        replyMessage,
+        durationSecs
       );
     } else {
       onSendMessage(`Voice message (${durationSecs}s)`, 'voice', undefined, replyMessage);

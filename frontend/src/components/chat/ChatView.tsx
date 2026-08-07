@@ -46,10 +46,11 @@ export function ChatView({ onToggleDetails }: { onToggleDetails?: () => void }) 
     file: File | Blob,
     messageType: 'image' | 'video' | 'audio' | 'voice' | 'document',
     caption: string = '',
-    replyTo?: Message | null
+    replyTo?: Message | null,
+    duration?: number
   ) => {
     if (!user) return;
-    sendMediaMessage(file, messageType, caption, replyTo, user, profile);
+    sendMediaMessage(file, messageType, caption, replyTo, user, profile, undefined, duration);
   };
 
   return (

@@ -49,7 +49,7 @@ export function NewChatDialog({ isOpen, onClose }: { isOpen: boolean; onClose: (
     if (!user) return;
     setStartingChatId(targetUser.id);
     try {
-      // Check if private conversation already exists
+      // Check if private conversation already exists in state
       const existing = conversations.find(c => 
         c.type === 'private' && 
         c.members?.some(m => m.user_id === targetUser.id)
@@ -61,10 +61,10 @@ export function NewChatDialog({ isOpen, onClose }: { isOpen: boolean; onClose: (
         return;
       }
 
-      // Create new private conversation
+      // Create new private conversation with created_by specified for RLS policy
       const { data: convData, error: convError } = await supabase
         .from('conversations')
-        .insert({ type: 'private' })
+        .insert({ type: 'private', created_by: user.id })
         .select()
         .single();
 
@@ -74,7 +74,7 @@ export function NewChatDialog({ isOpen, onClose }: { isOpen: boolean; onClose: (
       const { error: membersError } = await supabase
         .from('conversation_members')
         .insert([
-          { conversation_id: convData.id, user_id: user.id, role: 'member' },
+          { conversation_id: convData.id, user_id: user.id, role: 'owner' },
           { conversation_id: convData.id, user_id: targetUser.id, role: 'member' }
         ]);
 
@@ -83,7 +83,7 @@ export function NewChatDialog({ isOpen, onClose }: { isOpen: boolean; onClose: (
       const fullConv: any = {
         ...convData,
         members: [
-          { conversation_id: convData.id, user_id: user.id, role: 'member', profile: null },
+          { conversation_id: convData.id, user_id: user.id, role: 'owner', profile: null },
           { conversation_id: convData.id, user_id: targetUser.id, role: 'member', profile: targetUser }
         ]
       };
@@ -91,8 +91,9 @@ export function NewChatDialog({ isOpen, onClose }: { isOpen: boolean; onClose: (
       setConversations(prev => [fullConv, ...prev]);
       setActiveConversation(fullConv);
       onClose();
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to start chat:", err);
+      alert(err.message || 'Failed to start conversation');
     } finally {
       setStartingChatId(null);
     }
@@ -159,7 +160,7 @@ export function NewChatDialog({ isOpen, onClose }: { isOpen: boolean; onClose: (
                     size="sm"
                     onClick={() => handleStartChat(targetUser)}
                     disabled={startingChatId === targetUser.id}
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5"
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5 cursor-pointer active:scale-95 transition-all"
                   >
                     {startingChatId === targetUser.id ? (
                       <Loader2 className="h-4 w-4 animate-spin" />

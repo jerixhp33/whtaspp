@@ -4,17 +4,23 @@ import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 
 export function ChatHeader({ onToggleDetails }: { onToggleDetails?: () => void }) {
-  const { activeConversation, setActiveConversation } = useChat();
-
+  const { activeConversation, setActiveConversation, onlineUserIds, typingUsernames } = useChat();
   const { user } = useAuth();
   
   if (!activeConversation) return null;
 
   const isGroup = activeConversation.type === 'group';
-  const otherMember = activeConversation.members?.find(m => m.user_id !== user?.id)?.profile;
-  const name = isGroup ? activeConversation.group?.name : (otherMember?.display_name || otherMember?.username || 'Unknown');
+  const members = activeConversation.members || (activeConversation as any).conversation_members || [];
+  const otherMemberObj = members.find((m: any) => m.user_id !== user?.id);
+  const otherMember = otherMemberObj?.profiles || otherMemberObj?.profile;
+  
+  const name = isGroup 
+    ? activeConversation.group?.name 
+    : (otherMember?.display_name || otherMember?.username || 'Chat User');
+    
   const avatarUrl = isGroup ? activeConversation.group?.avatar_url : otherMember?.avatar_url;
-  const isOnline = isGroup ? false : otherMember?.is_online;
+  const isOnline = isGroup ? false : (otherMember?.id ? onlineUserIds.has(otherMember.id) || otherMember?.is_online : false);
+  const isTyping = typingUsernames[activeConversation.id];
 
   return (
     <div className="flex items-center justify-between p-3 border-b border-zinc-800 bg-zinc-950/95 backdrop-blur z-10">
@@ -29,12 +35,12 @@ export function ChatHeader({ onToggleDetails }: { onToggleDetails?: () => void }
         </Button>
         
         <div className="relative">
-          <div className="w-10 h-10 rounded-full bg-zinc-800 overflow-hidden">
+          <div className="w-10 h-10 rounded-full bg-zinc-800 overflow-hidden border border-zinc-700 flex items-center justify-center">
             {avatarUrl ? (
               <img src={avatarUrl} alt={name} className="w-full h-full object-cover" />
             ) : (
-              <div className="w-full h-full flex items-center justify-center font-medium">
-                {name?.charAt(0) || '?'}
+              <div className="w-full h-full flex items-center justify-center font-medium text-zinc-200">
+                {name?.charAt(0)?.toUpperCase() || '?'}
               </div>
             )}
           </div>
@@ -45,8 +51,14 @@ export function ChatHeader({ onToggleDetails }: { onToggleDetails?: () => void }
         
         <div>
           <h2 className="font-medium text-zinc-100">{name}</h2>
-          <p className="text-xs text-zinc-400">
-            {isOnline ? 'Online' : 'Offline'}
+          <p className="text-xs">
+            {isTyping ? (
+              <span className="text-emerald-400 font-medium animate-pulse">typing...</span>
+            ) : isOnline ? (
+              <span className="text-emerald-400">Online</span>
+            ) : (
+              <span className="text-zinc-500">Offline</span>
+            )}
           </p>
         </div>
       </div>

@@ -61,14 +61,16 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 
       const { data: convData, error: convErr } = await supabase
         .from('conversations')
-        .select('*, conversation_members(*, profiles(*)), groups(*)')
+        .select('*, conversation_members(*, profiles(*)), groups(*), last_message:messages!last_message_id(*)')
         .in('id', convIds)
-        .order('last_message_at', { ascending: false });
+        .order('last_message_at', { ascending: false, nullsFirst: false });
 
       if (!convErr && convData) {
-        // Fetch last message for each conversation
+        // Fallback check if last_message is null for any conversation
         const fullConvs = await Promise.all(
           convData.map(async (conv: any) => {
+            if (conv.last_message) return conv;
+
             const { data: lastMsgData } = await supabase
               .from('messages')
               .select('*')
@@ -123,7 +125,6 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         },
         async (payload) => {
           const newMsg = payload.new as any;
-          // Update conversations list state locally
           setConversations(prev => {
             const index = prev.findIndex(c => c.id === newMsg.conversation_id);
             if (index < 0) {
@@ -134,6 +135,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
             const updatedConv = {
               ...prev[index],
               last_message: newMsg,
+              last_message_id: newMsg.id,
               last_message_at: newMsg.created_at,
               updated_at: newMsg.created_at
             };

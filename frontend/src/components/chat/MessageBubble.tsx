@@ -138,7 +138,7 @@ export function MessageBubble({
     }
   };
 
-  const isEmojiOnly = message.message_type === 'text' && !isDeleted && isEmojiOnlyMessage(message.content || '').isEmojiOnly;
+  const isEmojiOnly = message.message_type === 'text' && !isDeleted && !message.reply_to && isEmojiOnlyMessage(message.content || '').isEmojiOnly;
 
   const [swipeOffset, setSwipeOffset] = useState(0);
   const touchStartX = useRef<number | null>(null);
@@ -566,7 +566,7 @@ export function MessageBubble({
             }`}
           >
             {/* Reply Quote Preview if message is a reply */}
-            {message.reply_to && message.reply_to.content && (
+            {message.reply_to && (message.reply_to.content || message.reply_to.message_type !== 'text') && (
               <div
                 onClick={() =>
                   message.reply_to?.id && onScrollToReply && onScrollToReply(message.reply_to.id)
@@ -580,7 +580,13 @@ export function MessageBubble({
                 <p className="font-semibold text-[11px]">
                   {replySenderNameClean}
                 </p>
-                <div className="truncate opacity-90 text-[11px]"><EmojiText text={message.reply_to.content || ''} /></div>
+                <div className="truncate opacity-90 text-[11px]">
+                  {message.reply_to.message_type === 'image' ? '📷 Photo' :
+                   message.reply_to.message_type === 'video' ? '🎥 Video' :
+                   message.reply_to.message_type === 'voice' || message.reply_to.message_type === 'audio' ? '🎤 Voice message' :
+                   message.reply_to.message_type === 'document' ? '📄 Document' :
+                   <EmojiText text={message.reply_to.content || ''} forceSize="sm" />}
+                </div>
               </div>
             )}
 

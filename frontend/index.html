@@ -20,8 +20,8 @@
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
     <link rel="manifest" href="/manifest.webmanifest" />
   </head>
-  <body class="bg-zinc-950 text-zinc-100 antialiased select-none overflow-hidden h-[100dvh] w-screen">
-    <div id="root" class="h-full w-full overflow-hidden flex flex-col"></div>
+  <body class="bg-zinc-950 text-zinc-100 antialiased select-none overflow-hidden fixed inset-0 w-full h-[100dvh]">
+    <div id="root" class="absolute inset-0 overflow-hidden flex flex-col"></div>
     <script type="module" src="/src/main.tsx"></script>
     <script>
       // Register Service Worker for PWA

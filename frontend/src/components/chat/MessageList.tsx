@@ -121,12 +121,29 @@ export function MessageList({ onReply, onEdit, messagesHook }: Props) {
     const isOwnLastMsg = lastMsg?.sender_id === user?.id;
 
     if (distanceFromBottom < 150 || isOwnLastMsg) {
-      scrollToBottom('smooth');
+      // Small timeout to allow DOM to update, e.g. images or typing indicators
+      setTimeout(() => scrollToBottom('smooth'), 50);
     } else if (newMsgCount > 0) {
       setShowScrollBottomBtn(true);
       setUnreadCount((prev) => prev + newMsgCount);
     }
   }, [messages, user?.id]);
+
+  // Keep scroll position at bottom when keyboard opens/closes
+  useEffect(() => {
+    if (!window.visualViewport || !containerRef.current) return;
+    const handleResize = () => {
+      const container = containerRef.current;
+      if (!container) return;
+      const distanceFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
+      // If we were near the bottom before resize, snap back to bottom
+      if (distanceFromBottom < 250) {
+        scrollToBottom('auto');
+      }
+    };
+    window.visualViewport.addEventListener('resize', handleResize);
+    return () => window.visualViewport?.removeEventListener('resize', handleResize);
+  }, []);
 
   // Reset scroll on active conversation change
   useEffect(() => {
@@ -135,7 +152,8 @@ export function MessageList({ onReply, onEdit, messagesHook }: Props) {
     setUnreadCount(0);
     setIsSelectMode(false);
     setSelectedMessageIds(new Set());
-    scrollToBottom('auto');
+    // Give it a tiny delay to ensure the new chat is rendered before scrolling
+    setTimeout(() => scrollToBottom('auto'), 0);
   }, [activeConversation?.id]);
 
   // Multi-select handlers

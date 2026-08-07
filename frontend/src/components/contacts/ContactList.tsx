@@ -21,23 +21,34 @@ export function ContactList() {
     const fetchContacts = async () => {
       setLoading(true);
       try {
-        // Fetch explicit contacts
-        const { data: contactsData } = await supabase
+        // Step 1: Fetch explicit contact IDs
+        const { data: contactsData, error: contactsErr } = await supabase
           .from('contacts')
-          .select('contact_id, profiles!contact_id(*)')
+          .select('contact_id')
           .eq('user_id', user.id);
 
         let list: Profile[] = [];
-        if (contactsData && contactsData.length > 0) {
-          list = contactsData.map((c: any) => c.profiles).filter(Boolean);
-        } else {
-          // Fallback: discover other users in profiles table
+
+        if (!contactsErr && contactsData && contactsData.length > 0) {
+          const contactIds = contactsData.map(c => c.contact_id).filter(Boolean);
+          if (contactIds.length > 0) {
+            const { data: profilesData } = await supabase
+              .from('profiles')
+              .select('*')
+              .in('id', contactIds);
+
+            if (profilesData) list = profilesData as Profile[];
+          }
+        }
+
+        // Step 2: Fallback - discover other registered users in ChatFlow
+        if (list.length === 0) {
           const { data: allProfiles } = await supabase
             .from('profiles')
             .select('*')
             .neq('id', user.id)
-            .limit(20);
-            
+            .limit(30);
+
           if (allProfiles) list = allProfiles as Profile[];
         }
 

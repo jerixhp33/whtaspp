@@ -41,10 +41,10 @@ export function getEmojiCodePoint(unicode: string): string {
   return codePoints.filter((c) => c !== 'fe0e').join('-');
 }
 
-// Get SVG URL for the emoji
+// Get Apple Emoji PNG URL (iPhone style)
 export function getEmojiSvgUrl(unicode: string): string {
   const hex = getEmojiCodePoint(unicode);
-  return `https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/svg/${hex}.svg`;
+  return `https://cdn.jsdelivr.net/npm/emoji-datasource-apple@15.0.1/img/apple/64/${hex}.png`;
 }
 
 // Comprehensive Emoji Category Registry

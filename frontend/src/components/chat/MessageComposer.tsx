@@ -302,14 +302,14 @@ export function MessageComposer({
               )}
 
               {/* Input Row */}
-              <div className="flex items-end gap-1.5 sm:gap-2 px-1 py-1">
+              <div className="flex items-center gap-1.5 sm:gap-2 px-1 py-1 min-h-[48px]">
                 {/* Emoji Button (Left) */}
               <Button
                 type="button"
                 variant="ghost"
                 size="icon"
                 onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                className={`shrink-0 mb-0.5 h-10 w-10 transition-colors ${
+                className={`shrink-0 h-10 w-10 transition-colors ${
                   showEmojiPicker
                     ? 'text-emerald-400 bg-emerald-500/10'
                     : 'text-zinc-400 hover:text-white hover:bg-zinc-800'
@@ -321,11 +321,11 @@ export function MessageComposer({
               </Button>
 
               {/* Multiline Text Input Container */}
-              <div className="flex-1 min-w-0 relative">
+              <div className="flex-1 min-w-0 relative flex items-center">
                 {/* Visual Overlay for Custom Emoji Rendering */}
                 <div 
                   ref={overlayRef}
-                  className="absolute inset-0 pointer-events-none py-3 text-[17px] leading-snug whitespace-pre-wrap break-words overflow-hidden"
+                  className="absolute inset-0 pointer-events-none py-2.5 text-[17px] leading-snug whitespace-pre-wrap break-words overflow-hidden flex items-center"
                   style={{ paddingRight: '0.25rem', paddingLeft: '0.125rem' }}
                   aria-hidden="true"
                 >
@@ -340,7 +340,7 @@ export function MessageComposer({
                   onKeyDown={handleKeyDown}
                   onScroll={handleScroll}
                   placeholder={navigator.onLine ? 'Message' : 'Offline'}
-                  className="w-full max-h-[120px] min-h-[44px] bg-transparent border-0 outline-none focus:outline-none focus:ring-0 resize-none py-3 text-transparent caret-white placeholder-zinc-400 text-[17px] leading-snug selection:bg-emerald-500/40 selection:text-transparent overflow-y-auto"
+                  className="w-full max-h-[120px] min-h-[24px] bg-transparent border-0 outline-none focus:outline-none focus:ring-0 resize-none py-2.5 text-transparent caret-white placeholder-zinc-400 text-[17px] leading-snug selection:bg-emerald-500/40 selection:text-transparent overflow-y-auto"
                   rows={1}
                   style={{ paddingRight: '0.25rem', paddingLeft: '0.125rem' }}
                   spellCheck={false}
@@ -353,7 +353,7 @@ export function MessageComposer({
                 variant="ghost"
                 size="icon"
                 onClick={() => setShowAttachmentMenu(!showAttachmentMenu)}
-                className={`shrink-0 mb-0.5 h-10 w-10 transition-colors ${
+                className={`shrink-0 h-10 w-10 transition-colors ${
                   showAttachmentMenu
                     ? 'text-emerald-400 bg-emerald-500/10'
                     : 'text-zinc-400 hover:text-white hover:bg-zinc-800'
@@ -370,7 +370,7 @@ export function MessageComposer({
                   type="button"
                   variant="ghost"
                   size="icon"
-                  className="shrink-0 mb-0.5 h-10 w-10 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-full mr-1"
+                  className="shrink-0 h-10 w-10 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-full mr-1"
                   title="Camera"
                 >
                   <Camera className="h-5 w-5" />
@@ -380,7 +380,7 @@ export function MessageComposer({
             </div>
 
             {/* External Circular Button (Mic or Send) */}
-            <div className="shrink-0 mb-0.5">
+            <div className="shrink-0">
               {editingMessage ? (
                 <Button
                   type="button"

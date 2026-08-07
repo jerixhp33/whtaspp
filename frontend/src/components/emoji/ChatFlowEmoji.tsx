@@ -31,8 +31,10 @@ export function ChatFlowEmoji({ unicode, size = 'md', className = '', animate = 
       src={svgUrl}
       alt={unicode}
       draggable={false}
+      onContextMenu={(e) => e.preventDefault()}
       onError={() => setLoadFailed(true)}
-      className={`${sizeClasses[size]} ${animationClass} ${className}`}
+      className={`${sizeClasses[size]} ${animationClass} ${className} select-none`}
+      style={{ WebkitTouchCallout: 'none', userSelect: 'none' }}
       loading="lazy"
     />
   );

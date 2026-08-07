@@ -90,13 +90,13 @@ export function ProfileEdit() {
   };
 
   return (
-    <div className="p-8 max-w-2xl">
+    <div className="p-2 sm:p-4 md:p-6 max-w-2xl">
       <div className="mb-6">
         <h2 className="text-xl font-bold text-white">Public Profile</h2>
         <p className="text-sm text-zinc-400">Manage how others see you on ChatFlow.</p>
       </div>
 
-      <div className="flex items-center gap-6 mb-8 p-4 bg-zinc-900/50 rounded-xl border border-zinc-800">
+      <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-6 mb-8 p-4 bg-zinc-900/50 rounded-xl border border-zinc-800 text-center sm:text-left">
         <AvatarUpload currentAvatarUrl={profile?.avatar_url} onUpload={handleAvatarUpload} />
         <div>
           <h3 className="font-semibold text-white text-lg">{profile?.display_name || profile?.username || 'User'}</h3>
@@ -163,7 +163,7 @@ export function ProfileEdit() {
           </div>
         )}
 
-        <Button type="submit" disabled={loading} className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-6">
+        <Button type="submit" disabled={loading} className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-6 py-2">
           {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Save Changes"}
         </Button>
       </form>

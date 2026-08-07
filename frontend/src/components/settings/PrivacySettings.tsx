@@ -92,15 +92,15 @@ export const PrivacySettings: React.FC = () => {
   ];
 
   return (
-    <div className="p-8">
+    <div className="p-2 sm:p-4 md:p-6 max-w-2xl">
       <div className="mb-6">
         <h3 className="text-lg font-medium text-zinc-100">Privacy Settings</h3>
         <p className="text-sm text-zinc-400">Manage who can see your personal info and status.</p>
       </div>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 sm:space-y-8">
         <div className="space-y-6">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div>
               <label className="text-sm font-medium text-zinc-200">Last Seen</label>
               <p className="text-xs text-zinc-500">Who can see when you were last online</p>
@@ -109,7 +109,7 @@ export const PrivacySettings: React.FC = () => {
               value={watch('lastSeen')} 
               onValueChange={(val) => val && setValue('lastSeen', val)}
             >
-              <SelectTrigger className="w-[180px] bg-zinc-900 border-zinc-800 text-zinc-200">
+              <SelectTrigger className="w-full sm:w-[180px] bg-zinc-900 border-zinc-800 text-zinc-200">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent className="bg-zinc-900 border-zinc-800 text-zinc-200">
@@ -122,7 +122,7 @@ export const PrivacySettings: React.FC = () => {
             </Select>
           </div>
 
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div>
               <label className="text-sm font-medium text-zinc-200">Profile Photo</label>
               <p className="text-xs text-zinc-500">Who can see your profile picture</p>
@@ -131,7 +131,7 @@ export const PrivacySettings: React.FC = () => {
               value={watch('profilePhoto')} 
               onValueChange={(val) => val && setValue('profilePhoto', val)}
             >
-              <SelectTrigger className="w-[180px] bg-zinc-900 border-zinc-800 text-zinc-200">
+              <SelectTrigger className="w-full sm:w-[180px] bg-zinc-900 border-zinc-800 text-zinc-200">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent className="bg-zinc-900 border-zinc-800 text-zinc-200">
@@ -144,7 +144,7 @@ export const PrivacySettings: React.FC = () => {
             </Select>
           </div>
 
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div>
               <label className="text-sm font-medium text-zinc-200">About</label>
               <p className="text-xs text-zinc-500">Who can see your about bio</p>
@@ -153,7 +153,7 @@ export const PrivacySettings: React.FC = () => {
               value={watch('about')} 
               onValueChange={(val) => val && setValue('about', val)}
             >
-              <SelectTrigger className="w-[180px] bg-zinc-900 border-zinc-800 text-zinc-200">
+              <SelectTrigger className="w-full sm:w-[180px] bg-zinc-900 border-zinc-800 text-zinc-200">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent className="bg-zinc-900 border-zinc-800 text-zinc-200">
@@ -199,7 +199,7 @@ export const PrivacySettings: React.FC = () => {
         )}
 
         <div className="flex justify-end pt-4">
-          <Button type="submit" disabled={loading} className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium">
+          <Button type="submit" disabled={loading} className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white font-medium">
             {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Save Changes"}
           </Button>
         </div>

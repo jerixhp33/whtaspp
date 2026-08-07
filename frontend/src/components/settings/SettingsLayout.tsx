@@ -40,34 +40,44 @@ export const SettingsLayout: React.FC = () => {
   };
 
   return (
-    <div className="flex h-screen w-full bg-zinc-950 text-zinc-100 overflow-hidden">
-      {/* Settings Navigation Sidebar */}
-      <div className="w-64 border-r border-zinc-800 bg-zinc-950 p-4 flex flex-col justify-between">
+    <div className="flex flex-col md:flex-row min-h-screen md:h-screen w-full bg-zinc-950 text-zinc-100 overflow-x-hidden">
+      {/* Settings Navigation Header (Mobile) / Sidebar (Desktop) */}
+      <div className="w-full md:w-64 border-b md:border-b-0 md:border-r border-zinc-800 bg-zinc-950 p-4 flex flex-col justify-between flex-shrink-0">
         <div>
-          <div className="flex items-center gap-3 mb-6 px-2">
+          <div className="flex items-center justify-between mb-4 md:mb-6 px-1">
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => navigate('/')}
+                className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-900 transition-colors"
+                title="Back to Chats"
+              >
+                <ArrowLeft className="h-5 w-5" />
+              </button>
+              <h2 className="text-xl font-bold text-white tracking-tight">Settings</h2>
+            </div>
             <button
               onClick={() => navigate('/')}
-              className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-900 transition-colors"
-              title="Back to Chats"
+              className="md:hidden text-xs text-emerald-400 hover:underline font-medium"
             >
-              <ArrowLeft className="h-5 w-5" />
+              Done
             </button>
-            <h2 className="text-xl font-bold text-white tracking-tight">Settings</h2>
           </div>
-          <nav className="space-y-1">
+
+          {/* Horizontal scroll on mobile, vertical stack on desktop */}
+          <nav className="flex md:flex-col gap-1 overflow-x-auto pb-2 md:pb-0 scrollbar-none">
             {navItems.map((item) => (
               <button
                 key={item.id}
                 onClick={() => setActiveSection(item.id)}
                 className={cn(
-                  "flex w-full items-center gap-3 rounded-lg px-3.5 py-2.5 text-sm font-medium transition-colors",
+                  "flex items-center gap-2 rounded-lg px-3.5 py-2.5 text-sm font-medium transition-colors whitespace-nowrap flex-shrink-0",
                   activeSection === item.id
                     ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-semibold"
                     : "text-zinc-400 hover:bg-zinc-900 hover:text-zinc-100"
                 )}
               >
                 <item.icon className="h-4 w-4" />
-                {item.label}
+                <span>{item.label}</span>
               </button>
             ))}
           </nav>
@@ -75,15 +85,15 @@ export const SettingsLayout: React.FC = () => {
 
         <button
           onClick={() => navigate('/')}
-          className="flex items-center gap-2 px-3 py-2 text-sm text-zinc-400 hover:text-white transition-colors"
+          className="hidden md:flex items-center gap-2 px-3 py-2 text-sm text-zinc-400 hover:text-white transition-colors mt-4"
         >
           <ArrowLeft className="h-4 w-4" />
           <span>Back to Messages</span>
         </button>
       </div>
 
-      {/* Main Content Area */}
-      <div className="flex-1 overflow-y-auto p-4 md:p-8">
+      {/* Main Content Area - Full width on mobile */}
+      <div className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8">
         <div className="mx-auto max-w-3xl">
           {renderContent()}
         </div>

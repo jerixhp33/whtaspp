@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, ShieldCheck } from 'lucide-react';
+import { Loader2, ShieldCheck, Lock, Zap, Video, CheckCircle2 } from 'lucide-react';
 
 export function LoginForm() {
   const [googleLoading, setGoogleLoading] = useState(false);
@@ -33,19 +33,37 @@ export function LoginForm() {
   };
 
   return (
-    <Card className="w-full max-w-md mx-auto bg-zinc-950/90 border-zinc-800 text-zinc-100 backdrop-blur shadow-2xl">
-      <CardHeader className="text-center pb-2">
-        <CardTitle className="text-2xl font-bold tracking-tight">Sign In to ChatFlow</CardTitle>
-        <CardDescription className="text-zinc-400 text-sm mt-1">
-          Authenticate securely with your Google Account
+    <Card className="w-full max-w-md mx-auto bg-zinc-950/95 border-zinc-800 text-zinc-100 backdrop-blur-xl shadow-2xl rounded-2xl overflow-hidden">
+      <CardHeader className="text-center pb-2 pt-6">
+        <CardTitle className="text-2xl font-bold tracking-tight text-white">Sign In to ChatFlow</CardTitle>
+        <CardDescription className="text-zinc-400 text-xs sm:text-sm mt-1">
+          Instant end-to-end encrypted messaging & HD calling
         </CardDescription>
       </CardHeader>
+
       <CardContent className="pt-6 space-y-6">
+        {/* Feature Pill Highlights */}
+        <div className="grid grid-cols-3 gap-2 py-1">
+          <div className="flex flex-col items-center justify-center p-2 rounded-xl bg-zinc-900/60 border border-zinc-800/80 text-center">
+            <Lock className="h-4 w-4 text-emerald-400 mb-1" />
+            <span className="text-[10px] font-medium text-zinc-300">Encrypted</span>
+          </div>
+          <div className="flex flex-col items-center justify-center p-2 rounded-xl bg-zinc-900/60 border border-zinc-800/80 text-center">
+            <Zap className="h-4 w-4 text-emerald-400 mb-1" />
+            <span className="text-[10px] font-medium text-zinc-300">Realtime</span>
+          </div>
+          <div className="flex flex-col items-center justify-center p-2 rounded-xl bg-zinc-900/60 border border-zinc-800/80 text-center">
+            <Video className="h-4 w-4 text-emerald-400 mb-1" />
+            <span className="text-[10px] font-medium text-zinc-300">HD Calls</span>
+          </div>
+        </div>
+
+        {/* Main Google Login Button */}
         <Button
           type="button"
           onClick={handleGoogleLogin}
           disabled={googleLoading}
-          className="w-full h-12 bg-white hover:bg-zinc-100 text-zinc-900 font-semibold text-base flex items-center justify-center gap-3 rounded-xl transition-all shadow-lg hover:shadow-emerald-500/10 active:scale-[0.98]"
+          className="w-full h-12 bg-white hover:bg-zinc-100 text-zinc-900 font-semibold text-sm sm:text-base flex items-center justify-center gap-3 rounded-xl transition-all shadow-lg hover:shadow-emerald-500/10 active:scale-[0.98]"
         >
           {googleLoading ? (
             <Loader2 className="h-5 w-5 animate-spin text-zinc-900" />
@@ -78,9 +96,20 @@ export function LoginForm() {
           </div>
         )}
 
-        <div className="flex items-center justify-center gap-2 text-xs text-zinc-500 pt-2">
-          <ShieldCheck className="h-4 w-4 text-emerald-500" />
-          <span>Protected by Google OAuth 2.0 & End-to-End Encryption</span>
+        {/* Reassuring Data Privacy Notice */}
+        <div className="p-3.5 bg-zinc-900/80 rounded-xl border border-zinc-800 text-left space-y-1.5">
+          <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-400">
+            <CheckCircle2 className="h-3.5 w-3.5" />
+            <span>Strict Privacy Commitment</span>
+          </div>
+          <p className="text-[11px] text-zinc-400 leading-relaxed">
+            We only access your basic display name, avatar picture, and email address to create your account identity in ChatFlow. Your personal Google files and private data are never accessed or shared.
+          </p>
+        </div>
+
+        <div className="flex items-center justify-center gap-2 text-[11px] text-zinc-500 pt-1">
+          <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" />
+          <span>Protected by Google OAuth 2.0 & Supabase Auth</span>
         </div>
       </CardContent>
     </Card>

@@ -185,3 +185,10 @@
     transform: none;
   }
 }
+@keyframes emoji-jumbo-anim {
+  0%, 100% { transform: translateY(0px) scale(1); }
+  50% { transform: translateY(-4px) scale(1.05); }
+}
+.animate-emoji-jumbo {
+  animation: emoji-jumbo-anim 3s ease-in-out infinite;
+}

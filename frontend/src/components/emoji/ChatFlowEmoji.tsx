@@ -6,9 +6,10 @@ interface Props {
   size?: 'sm' | 'md' | 'lg' | 'xl' | 'jumbo';
   className?: string;
   animate?: boolean;
+  continuousAnimation?: boolean;
 }
 
-export function ChatFlowEmoji({ unicode, size = 'md', className = '', animate = false }: Props) {
+export function ChatFlowEmoji({ unicode, size = 'md', className = '', animate = false, continuousAnimation = false }: Props) {
   const [loadFailed, setLoadFailed] = useState(false);
   const svgUrl = getEmojiSvgUrl(unicode);
 
@@ -20,7 +21,10 @@ export function ChatFlowEmoji({ unicode, size = 'md', className = '', animate = 
     jumbo: 'w-12 h-12 inline-block align-middle mx-[2px] select-none',
   };
 
-  const animationClass = animate ? 'animate-emoji-pop opacity-0' : '';
+  let animationClass = animate ? 'animate-emoji-pop opacity-0' : '';
+  if (continuousAnimation) {
+    animationClass += ' animate-emoji-jumbo hover:scale-110 transition-transform cursor-default';
+  }
 
   if (loadFailed) {
     return <span className={`inline-block font-sans ${className}`}>{unicode}</span>;

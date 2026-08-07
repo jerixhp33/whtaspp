@@ -25,6 +25,7 @@ export function EmojiText({ text, className = '', animate = false, forceSize }: 
             unicode={emoji}
             size={size}
             animate={animate}
+            continuousAnimation={count === 1}
           />
         ))}
       </div>

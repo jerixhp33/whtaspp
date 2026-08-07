@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, Search, MessageSquare, UserPlus, Check } from 'lucide-react';
+import { X, Search, MessageSquare, Phone, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Profile } from '@/types';
@@ -28,7 +28,7 @@ export function NewChatDialog({ isOpen, onClose }: { isOpen: boolean; onClose: (
           .from('profiles')
           .select('*')
           .neq('id', user?.id || '')
-          .or(`username.ilike.%${query}%,display_name.ilike.%${query}%,email.ilike.%${query}%`)
+          .or(`username.ilike.%${query}%,display_name.ilike.%${query}%,email.ilike.%${query}%,phone.ilike.%${query}%`)
           .limit(10);
 
         if (!error && data) {
@@ -114,8 +114,8 @@ export function NewChatDialog({ isOpen, onClose }: { isOpen: boolean; onClose: (
           <div className="relative">
             <Search className="absolute left-3 top-2.5 h-4 w-4 text-zinc-400" />
             <Input
-              placeholder="Search users by name, username or email..."
-              className="pl-9 bg-zinc-900 border-zinc-800 text-zinc-100"
+              placeholder="Search by name, phone (+123...), or username..."
+              className="pl-9 bg-zinc-900 border-zinc-800 text-zinc-100 placeholder:text-zinc-500"
               value={query}
               onChange={e => setQuery(e.target.value)}
               autoFocus
@@ -125,7 +125,10 @@ export function NewChatDialog({ isOpen, onClose }: { isOpen: boolean; onClose: (
 
         <div className="p-4 flex-1 overflow-y-auto min-h-[250px]">
           {loading ? (
-            <div className="text-center text-sm text-zinc-500 py-8">Searching...</div>
+            <div className="text-center text-sm text-zinc-500 py-8 flex items-center justify-center gap-2">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span>Searching users...</span>
+            </div>
           ) : results.length > 0 ? (
             <div className="space-y-2">
               {results.map(targetUser => (
@@ -140,7 +143,15 @@ export function NewChatDialog({ isOpen, onClose }: { isOpen: boolean; onClose: (
                     </div>
                     <div>
                       <p className="font-medium text-sm text-zinc-100">{targetUser.display_name || targetUser.username}</p>
-                      <p className="text-xs text-zinc-500">@{targetUser.username}</p>
+                      <div className="flex items-center gap-2 text-xs text-zinc-500">
+                        <span>@{targetUser.username}</span>
+                        {targetUser.phone && (
+                          <span className="flex items-center gap-1 text-emerald-400 font-mono">
+                            <Phone className="h-3 w-3" />
+                            {targetUser.phone}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
 
@@ -150,8 +161,14 @@ export function NewChatDialog({ isOpen, onClose }: { isOpen: boolean; onClose: (
                     disabled={startingChatId === targetUser.id}
                     className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5"
                   >
-                    <MessageSquare className="h-4 w-4" />
-                    Chat
+                    {startingChatId === targetUser.id ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <>
+                        <MessageSquare className="h-4 w-4" />
+                        Chat
+                      </>
+                    )}
                   </Button>
                 </div>
               ))}
@@ -160,7 +177,7 @@ export function NewChatDialog({ isOpen, onClose }: { isOpen: boolean; onClose: (
             <div className="text-center text-sm text-zinc-500 py-8">No users found matching "{query}"</div>
           ) : (
             <div className="text-center text-sm text-zinc-500 py-8">
-              Type a name, username, or email above to find people and start messaging.
+              Type a name, phone number, or username above to find people and start messaging.
             </div>
           )}
         </div>

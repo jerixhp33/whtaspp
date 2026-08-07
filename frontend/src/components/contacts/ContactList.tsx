@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Search, UserPlus, MessageSquare, Loader2 } from 'lucide-react';
+import { Search, UserPlus, MessageSquare, Loader2, Phone, Contact } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Profile } from '@/types';
@@ -112,7 +112,8 @@ export function ContactList() {
   const filteredContacts = contacts.filter(c => 
     c.display_name?.toLowerCase().includes(search.toLowerCase()) || 
     c.username?.toLowerCase().includes(search.toLowerCase()) ||
-    c.email?.toLowerCase().includes(search.toLowerCase())
+    c.email?.toLowerCase().includes(search.toLowerCase()) ||
+    c.phone?.toLowerCase().includes(search.toLowerCase())
   );
 
   return (
@@ -134,7 +135,7 @@ export function ContactList() {
         <div className="relative">
           <Search className="absolute left-3 top-2.5 h-4 w-4 text-zinc-400" />
           <Input 
-            placeholder="Search contacts..." 
+            placeholder="Search contacts by name or phone..." 
             className="pl-9 bg-zinc-900 border-zinc-800 text-zinc-100 placeholder:text-zinc-500"
             value={search}
             onChange={e => setSearch(e.target.value)}
@@ -178,7 +179,15 @@ export function ContactList() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <h4 className="font-medium text-sm text-zinc-200 group-hover:text-white truncate">{contact.display_name || contact.username}</h4>
-                  <p className="text-xs text-zinc-500 truncate">@{contact.username}</p>
+                  <div className="flex items-center gap-2 text-xs text-zinc-500 truncate">
+                    <span>@{contact.username}</span>
+                    {contact.phone && (
+                      <span className="flex items-center gap-1 text-emerald-400 font-mono">
+                        <Phone className="h-3 w-3" />
+                        {contact.phone}
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <Button size="icon" variant="ghost" className="h-8 w-8 opacity-0 group-hover:opacity-100 text-emerald-400 hover:bg-emerald-500/10">
                   <MessageSquare className="h-4 w-4" />

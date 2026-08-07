@@ -2,8 +2,8 @@
 <html lang="en" class="dark">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-    <title>ChatFlow — Private Messaging, Voice & Video</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-widget=resizes-content" />
+    <title>ChatFlow</title>
     <meta name="description" content="ChatFlow - Modern, private end-to-end messaging, HD voice & video calls, and phone contacts sync." />
     
     <!-- PWA & Mobile Meta Tags -->
@@ -15,7 +15,7 @@
     <meta name="mobile-web-app-capable" content="yes" />
 
     <!-- Icons & Manifest -->
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/svg+xml" href="/icons/icon-192x192.png" />
     <link rel="alternate icon" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
     <link rel="manifest" href="/manifest.webmanifest" />
@@ -25,8 +25,8 @@
       position: fixed;
       top: 0;
       left: 0;
-      width: 100%;
-      height: 100%;
+      width: 100vw;
+      height: 100dvh;
       overflow: hidden;
       background-color: #09090b; /* zinc-950 */
       color: #f4f4f5; /* zinc-100 */
@@ -47,21 +47,6 @@
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
     <script>
-      // Strictly lock the #root container to the visual viewport height
-      // This prevents Android from pushing the top bar off-screen when the keyboard opens.
-      function syncHeight() {
-        const root = document.getElementById('root');
-        if (root && window.visualViewport) {
-          root.style.height = window.visualViewport.height + 'px';
-          root.style.top = window.visualViewport.offsetTop + 'px';
-        }
-      }
-      if (window.visualViewport) {
-        window.visualViewport.addEventListener('resize', syncHeight);
-        window.visualViewport.addEventListener('scroll', syncHeight);
-        syncHeight();
-      }
-
       // Register Service Worker for PWA
       if ('serviceWorker' in navigator && window.location.protocol.startsWith('http')) {
         window.addEventListener('load', () => {

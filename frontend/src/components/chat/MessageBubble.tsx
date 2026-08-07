@@ -140,8 +140,16 @@ export function MessageBubble({
 
   const isEmojiOnly = message.message_type === 'text' && !isDeleted && isEmojiOnlyMessage(message.content || '').isEmojiOnly;
 
-  const handleTouchStart = () => {
+  const [swipeOffset, setSwipeOffset] = useState(0);
+  const touchStartX = useRef<number | null>(null);
+  const touchStartY = useRef<number | null>(null);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
+    
     longPressTimer.current = setTimeout(() => {
+      touchStartX.current = null; // Cancel swipe if long press triggers
       if (onOpenActionSheet) {
         onOpenActionSheet(message);
       } else {
@@ -150,10 +158,43 @@ export function MessageBubble({
     }, 450);
   };
 
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!touchStartX.current || !touchStartY.current || isDeleted) return;
+    
+    const deltaX = e.touches[0].clientX - touchStartX.current;
+    const deltaY = Math.abs(e.touches[0].clientY - touchStartY.current);
+
+    // Cancel swipe if scrolling vertically
+    if (deltaY > 20) {
+      touchStartX.current = null;
+      setSwipeOffset(0);
+      if (longPressTimer.current) clearTimeout(longPressTimer.current);
+      return;
+    }
+
+    // Only allow swipe right for reply
+    if (deltaX > 0 && deltaX < 80) {
+      if (longPressTimer.current) clearTimeout(longPressTimer.current);
+      setSwipeOffset(deltaX);
+    }
+  };
+
   const handleTouchEnd = () => {
     if (longPressTimer.current) {
       clearTimeout(longPressTimer.current);
     }
+    
+    if (swipeOffset > 40 && onReply && !isDeleted) {
+      onReply(message);
+      // Haptic feedback
+      if (typeof window !== 'undefined' && window.navigator && window.navigator.vibrate) {
+        window.navigator.vibrate(50);
+      }
+    }
+    
+    setSwipeOffset(0);
+    touchStartX.current = null;
+    touchStartY.current = null;
   };
 
   const handleContextMenu = (e: React.MouseEvent) => {

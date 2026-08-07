@@ -247,57 +247,58 @@ export function MessageComposer({
       ) : (
         /* Normal Composer Layout */
         <div className="flex flex-col gap-2">
-          {/* Editing Message Banner */}
-          {editingMessage && (
-            <div className="flex items-center justify-between px-3 py-2 bg-sky-950/50 border-l-4 border-l-sky-500 rounded-xl text-xs mx-1">
-              <div className="min-w-0">
-                <span className="font-semibold text-sky-400 block">Editing message</span>
-                <span className="text-zinc-400 block truncate">{editingMessage.content}</span>
-              </div>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                onClick={() => {
-                  setText('');
-                  if (onClearEdit) onClearEdit();
-                }}
-                className="h-6 w-6 text-zinc-400 hover:text-white shrink-0"
-              >
-                <X className="h-3.5 w-3.5" />
-              </Button>
-            </div>
-          )}
-
-          {/* Reply Quote Banner */}
-          {replyMessage && !editingMessage && (
-            <div className="flex items-center justify-between px-3 py-2 bg-zinc-900 border-l-4 border-l-emerald-500 rounded-xl text-xs mx-1">
-              <div className="flex items-center gap-2 min-w-0">
-                <Reply className="h-4 w-4 text-emerald-400 shrink-0" />
-                <div className="min-w-0">
-                  <span className="font-semibold text-emerald-400 block truncate">
-                    Replying to{' '}
-                    {replyMessage.sender?.display_name || replyMessage.sender?.username || 'Someone'}
-                  </span>
-                  <span className="text-zinc-400 block truncate">{replyMessage.content}</span>
-                </div>
-              </div>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                onClick={onClearReply}
-                className="h-6 w-6 text-zinc-400 hover:text-white shrink-0"
-              >
-                <X className="h-3.5 w-3.5" />
-              </Button>
-            </div>
-          )}
-
           <div className="flex items-end gap-2">
             {/* Pill Container */}
-            <div className="flex-1 flex items-end gap-1.5 sm:gap-2 bg-[#1f2c34] rounded-3xl border-0 px-1 py-1 shadow-sm min-h-[44px]">
-              {/* Emoji Button (Left) */}
+            <div className="flex-1 flex flex-col bg-[#1f2c34] rounded-3xl border-0 shadow-sm min-h-[44px] overflow-hidden">
+              
+              {/* Editing Message Banner */}
+              {editingMessage && (
+                <div className="flex items-center justify-between px-3 py-2 bg-sky-950/50 border-l-4 border-l-sky-500 text-xs mx-1 mt-1 rounded-xl">
+                  <div className="min-w-0">
+                    <span className="font-semibold text-sky-400 block">Editing message</span>
+                    <span className="text-zinc-400 block truncate">{editingMessage.content}</span>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => {
+                      setText('');
+                      if (onClearEdit) onClearEdit();
+                    }}
+                    className="h-6 w-6 text-zinc-400 hover:text-white shrink-0"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              )}
+
+              {/* Reply Quote Banner */}
+              {replyMessage && !editingMessage && (
+                <div className="flex items-center justify-between px-3 py-2 bg-zinc-900 border-l-4 border-l-emerald-500 text-xs mx-1 mt-1 rounded-xl">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="min-w-0">
+                      <span className="font-semibold text-emerald-400 block truncate">
+                        {replyMessage.sender?.display_name || replyMessage.sender?.username || 'Someone'}
+                      </span>
+                      <span className="text-zinc-400 block truncate">{replyMessage.content}</span>
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={onClearReply}
+                    className="h-6 w-6 text-zinc-400 hover:text-white shrink-0"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              )}
+
+              {/* Input Row */}
+              <div className="flex items-end gap-1.5 sm:gap-2 px-1 py-1">
+                {/* Emoji Button (Left) */}
               <Button
                 type="button"
                 variant="ghost"
@@ -370,6 +371,7 @@ export function MessageComposer({
                   <Camera className="h-5 w-5" />
                 </Button>
               )}
+            </div>
             </div>
 
             {/* External Circular Button (Mic or Send) */}

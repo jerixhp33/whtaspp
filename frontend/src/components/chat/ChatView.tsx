@@ -76,7 +76,7 @@ export function ChatView({ onToggleDetails }: { onToggleDetails?: () => void }) 
       </div>
 
       {/* Fixed Bottom Composer */}
-      <div className="flex-shrink-0 p-2.5 sm:p-4 border-t border-zinc-800/80 bg-zinc-950/95 backdrop-blur z-20 pb-[max(0.625rem,env(safe-area-inset-bottom))]">
+      <div className="flex-shrink-0 p-2.5 sm:p-4 bg-transparent z-20 pb-[max(0.625rem,env(safe-area-inset-bottom))]">
         <MessageComposer
           replyMessage={replyMessage}
           editingMessage={editingMessage}

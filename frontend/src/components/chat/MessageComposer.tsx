@@ -337,7 +337,7 @@ export function MessageComposer({
                   onKeyDown={handleKeyDown}
                   onScroll={handleScroll}
                   placeholder={navigator.onLine ? 'Message' : 'Offline'}
-                  className="w-full max-h-[120px] min-h-[44px] bg-transparent border-0 focus:ring-0 resize-none py-3 text-transparent caret-white placeholder-zinc-400 text-[17px] leading-snug selection:bg-emerald-500/40 selection:text-transparent overflow-y-auto"
+                  className="w-full max-h-[120px] min-h-[44px] bg-transparent border-0 outline-none focus:outline-none focus:ring-0 resize-none py-3 text-transparent caret-white placeholder-zinc-400 text-[17px] leading-snug selection:bg-emerald-500/40 selection:text-transparent overflow-y-auto"
                   rows={1}
                   style={{ paddingRight: '0.25rem', paddingLeft: '0.125rem' }}
                   spellCheck={false}

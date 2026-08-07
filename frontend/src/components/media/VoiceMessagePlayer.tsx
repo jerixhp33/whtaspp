@@ -12,7 +12,9 @@ interface Props {
 export function VoiceMessagePlayer({ src, durationSecs }: Props) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
-  const [totalDuration, setTotalDuration] = useState(durationSecs || 0);
+  const [totalDuration, setTotalDuration] = useState(() => {
+    return (durationSecs && isFinite(durationSecs) && !isNaN(durationSecs)) ? durationSecs : 0;
+  });
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
@@ -20,13 +22,16 @@ export function VoiceMessagePlayer({ src, durationSecs }: Props) {
     audioRef.current = audio;
 
     const handleLoadedMetadata = () => {
-      if (audio.duration && !isNaN(audio.duration)) {
+      if (audio.duration && isFinite(audio.duration) && !isNaN(audio.duration)) {
         setTotalDuration(Math.round(audio.duration));
       }
     };
 
     const handleTimeUpdate = () => {
       setCurrentTime(audio.currentTime);
+      if (audio.duration && isFinite(audio.duration) && !isNaN(audio.duration) && (!totalDuration || totalDuration === 0)) {
+        setTotalDuration(Math.round(audio.duration));
+      }
     };
 
     const handleEnded = () => {
@@ -51,7 +56,7 @@ export function VoiceMessagePlayer({ src, durationSecs }: Props) {
       audio.pause();
       if (activeAudioInstance === audio) activeAudioInstance = null;
     };
-  }, [src]);
+  }, [src, totalDuration]);
 
   const togglePlay = () => {
     const audio = audioRef.current;
@@ -71,7 +76,7 @@ export function VoiceMessagePlayer({ src, durationSecs }: Props) {
 
   const handleSeek = (e: React.MouseEvent<HTMLDivElement>) => {
     const audio = audioRef.current;
-    if (!audio || !totalDuration) return;
+    if (!audio || !totalDuration || !isFinite(totalDuration)) return;
 
     const rect = e.currentTarget.getBoundingClientRect();
     const clickX = e.clientX - rect.left;
@@ -82,12 +87,14 @@ export function VoiceMessagePlayer({ src, durationSecs }: Props) {
   };
 
   const formatTime = (secs: number) => {
+    if (!secs || isNaN(secs) || !isFinite(secs) || secs < 0) return '0:00';
     const m = Math.floor(secs / 60);
     const s = Math.floor(secs % 60);
     return `${m}:${s.toString().padStart(2, '0')}`;
   };
 
-  const progressPct = totalDuration > 0 ? (currentTime / totalDuration) * 100 : 0;
+  const validTotal = (totalDuration && isFinite(totalDuration) && !isNaN(totalDuration)) ? totalDuration : 0;
+  const progressPct = validTotal > 0 ? (currentTime / validTotal) * 100 : 0;
 
   // Generate deterministic bar heights based on index
   const getBarHeight = (i: number) => {
@@ -101,7 +108,7 @@ export function VoiceMessagePlayer({ src, durationSecs }: Props) {
       <button
         type="button"
         onClick={togglePlay}
-        className="w-10 h-10 shrink-0 bg-emerald-600 hover:bg-emerald-700 text-white rounded-full flex items-center justify-center transition-transform active:scale-95 shadow-md shadow-emerald-600/20"
+        className="w-10 h-10 shrink-0 bg-emerald-600 hover:bg-emerald-700 text-white rounded-full flex items-center justify-center transition-transform active:scale-95 shadow-md shadow-emerald-600/20 cursor-pointer"
       >
         {isPlaying ? <Pause className="h-4 w-4 fill-white" /> : <Play className="h-4 w-4 ml-0.5 fill-white" />}
       </button>
@@ -131,7 +138,7 @@ export function VoiceMessagePlayer({ src, durationSecs }: Props) {
 
         {/* Time info */}
         <div className="flex items-center justify-between text-[10px] text-zinc-400 font-mono">
-          <span>{formatTime(isPlaying ? currentTime : totalDuration)}</span>
+          <span>{formatTime(isPlaying ? currentTime : validTotal)}</span>
           <div className="flex items-center gap-1 text-emerald-400">
             <Volume2 className="h-3 w-3" />
             <span>Voice</span>

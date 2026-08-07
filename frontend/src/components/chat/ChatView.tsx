@@ -12,12 +12,19 @@ export function ChatView({ onToggleDetails }: { onToggleDetails?: () => void }) 
   if (!activeConversation) return null;
 
   return (
-    <div className="flex flex-col h-full bg-zinc-950 w-full relative">
-      <ChatHeader onToggleDetails={onToggleDetails} />
-      <div className="flex-1 overflow-hidden">
+    <div className="flex flex-col h-full w-full bg-zinc-950 relative overflow-hidden">
+      {/* Fixed Header */}
+      <div className="flex-shrink-0 z-20">
+        <ChatHeader onToggleDetails={onToggleDetails} />
+      </div>
+
+      {/* Scrollable Message List */}
+      <div className="flex-1 min-h-0 overflow-hidden flex flex-col relative z-10">
         <MessageList onReply={(msg) => setReplyMessage(msg)} />
       </div>
-      <div className="p-3 sm:p-4 border-t border-zinc-800 bg-zinc-950">
+
+      {/* Fixed Bottom Composer */}
+      <div className="flex-shrink-0 p-2.5 sm:p-4 border-t border-zinc-800/80 bg-zinc-950/95 backdrop-blur z-20 pb-[max(0.625rem,env(safe-area-inset-bottom))]">
         <MessageComposer 
           replyMessage={replyMessage} 
           onClearReply={() => setReplyMessage(null)} 

@@ -1,76 +1,143 @@
 import { useState, useRef, useEffect } from 'react';
-import { Play, Pause } from 'lucide-react';
+import { Play, Pause, Volume2 } from 'lucide-react';
 
-export function VoiceMessagePlayer({ src }: { src: string }) {
+// Global audio manager to pause other active voice messages when a new one starts
+let activeAudioInstance: HTMLAudioElement | null = null;
+
+interface Props {
+  src: string;
+  durationSecs?: number;
+}
+
+export function VoiceMessagePlayer({ src, durationSecs }: Props) {
   const [isPlaying, setIsPlaying] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const [duration, setDuration] = useState('0:00');
-  const audioRef = useRef<HTMLAudioElement>(null);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [totalDuration, setTotalDuration] = useState(durationSecs || 0);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
+    const audio = new Audio(src);
+    audioRef.current = audio;
+
+    const handleLoadedMetadata = () => {
+      if (audio.duration && !isNaN(audio.duration)) {
+        setTotalDuration(Math.round(audio.duration));
+      }
+    };
+
+    const handleTimeUpdate = () => {
+      setCurrentTime(audio.currentTime);
+    };
+
+    const handleEnded = () => {
+      setIsPlaying(false);
+      setCurrentTime(0);
+    };
+
+    const handlePause = () => {
+      setIsPlaying(false);
+    };
+
+    audio.addEventListener('loadedmetadata', handleLoadedMetadata);
+    audio.addEventListener('timeupdate', handleTimeUpdate);
+    audio.addEventListener('ended', handleEnded);
+    audio.addEventListener('pause', handlePause);
+
+    return () => {
+      audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
+      audio.removeEventListener('timeupdate', handleTimeUpdate);
+      audio.removeEventListener('ended', handleEnded);
+      audio.removeEventListener('pause', handlePause);
+      audio.pause();
+      if (activeAudioInstance === audio) activeAudioInstance = null;
+    };
+  }, [src]);
+
+  const togglePlay = () => {
     const audio = audioRef.current;
     if (!audio) return;
 
-    const updateProgress = () => setProgress((audio.currentTime / audio.duration) * 100);
-    const handleEnded = () => { setIsPlaying(false); setProgress(0); };
-    const handleLoadedMetadata = () => {
-      const mins = Math.floor(audio.duration / 60);
-      const secs = Math.floor(audio.duration % 60);
-      setDuration(`${mins}:${secs.toString().padStart(2, '0')}`);
-    };
-
-    audio.addEventListener('timeupdate', updateProgress);
-    audio.addEventListener('ended', handleEnded);
-    audio.addEventListener('loadedmetadata', handleLoadedMetadata);
-
-    return () => {
-      audio.removeEventListener('timeupdate', updateProgress);
-      audio.removeEventListener('ended', handleEnded);
-      audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
-    };
-  }, []);
-
-  const togglePlay = () => {
-    if (audioRef.current) {
-      if (isPlaying) audioRef.current.pause();
-      else audioRef.current.play();
-      setIsPlaying(!isPlaying);
+    if (isPlaying) {
+      audio.pause();
+      setIsPlaying(false);
+    } else {
+      if (activeAudioInstance && activeAudioInstance !== audio) {
+        activeAudioInstance.pause();
+      }
+      activeAudioInstance = audio;
+      audio.play().then(() => setIsPlaying(true)).catch(console.error);
     }
   };
 
+  const handleSeek = (e: React.MouseEvent<HTMLDivElement>) => {
+    const audio = audioRef.current;
+    if (!audio || !totalDuration) return;
+
+    const rect = e.currentTarget.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+    const pct = Math.max(0, Math.min(1, clickX / rect.width));
+    const targetTime = pct * totalDuration;
+    audio.currentTime = targetTime;
+    setCurrentTime(targetTime);
+  };
+
+  const formatTime = (secs: number) => {
+    const m = Math.floor(secs / 60);
+    const s = Math.floor(secs % 60);
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  };
+
+  const progressPct = totalDuration > 0 ? (currentTime / totalDuration) * 100 : 0;
+
+  // Generate deterministic bar heights based on index
+  const getBarHeight = (i: number) => {
+    const heights = [35, 60, 85, 45, 95, 70, 40, 80, 100, 60, 75, 50, 90, 65, 40, 85, 95, 50, 70, 80, 45, 65];
+    return heights[i % heights.length];
+  };
+
   return (
-    <div className="flex items-center gap-3 w-64 bg-zinc-900/50 p-2 rounded-xl">
-      <button 
+    <div className="flex items-center gap-3 w-64 sm:w-72 bg-zinc-900/80 p-2.5 rounded-xl border border-zinc-800/80 shadow-inner my-1">
+      {/* Play/Pause Button */}
+      <button
+        type="button"
         onClick={togglePlay}
-        className="w-10 h-10 flex-shrink-0 bg-emerald-600 text-white rounded-full flex items-center justify-center hover:bg-emerald-700 transition-colors"
+        className="w-10 h-10 shrink-0 bg-emerald-600 hover:bg-emerald-700 text-white rounded-full flex items-center justify-center transition-transform active:scale-95 shadow-md shadow-emerald-600/20"
       >
-        {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4 ml-1" />}
+        {isPlaying ? <Pause className="h-4 w-4 fill-white" /> : <Play className="h-4 w-4 ml-0.5 fill-white" />}
       </button>
-      
-      <div className="flex-1 flex flex-col justify-center">
-        {/* Simple waveform mock */}
-        <div className="h-6 flex items-center gap-0.5 w-full cursor-pointer" onClick={(e) => {
-          if (audioRef.current) {
-            const rect = e.currentTarget.getBoundingClientRect();
-            const pct = (e.clientX - rect.left) / rect.width;
-            audioRef.current.currentTime = pct * audioRef.current.duration;
-          }
-        }}>
-          {[...Array(30)].map((_, i) => {
-            const isPlayed = (i / 30) * 100 < progress;
+
+      {/* Waveform Seekbar */}
+      <div className="flex-1 flex flex-col justify-center gap-1">
+        <div
+          onClick={handleSeek}
+          className="h-7 flex items-center gap-0.5 w-full cursor-pointer py-1"
+          title="Click to seek"
+        >
+          {[...Array(22)].map((_, i) => {
+            const barPct = (i / 22) * 100;
+            const isPlayed = barPct <= progressPct;
+
             return (
-              <div 
-                key={i} 
-                className={`flex-1 rounded-full ${isPlayed ? 'bg-emerald-500' : 'bg-zinc-600'}`}
-                style={{ height: `${20 + Math.random() * 80}%` }}
+              <div
+                key={i}
+                className={`flex-1 rounded-full transition-colors ${
+                  isPlayed ? 'bg-emerald-400' : 'bg-zinc-700'
+                }`}
+                style={{ height: `${getBarHeight(i)}%` }}
               />
             );
           })}
         </div>
-        <div className="text-[10px] text-zinc-400 mt-1">{duration}</div>
+
+        {/* Time info */}
+        <div className="flex items-center justify-between text-[10px] text-zinc-400 font-mono">
+          <span>{formatTime(isPlaying ? currentTime : totalDuration)}</span>
+          <div className="flex items-center gap-1 text-emerald-400">
+            <Volume2 className="h-3 w-3" />
+            <span>Voice</span>
+          </div>
+        </div>
       </div>
-      
-      <audio ref={audioRef} src={src} preload="metadata" />
     </div>
   );
 }

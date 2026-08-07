@@ -492,8 +492,10 @@ export function MessageBubble({
     return raw;
   })();
 
+  const replyData = Array.isArray(message.reply_to) ? message.reply_to[0] : message.reply_to;
+
   const replySenderNameClean = (() => {
-    const raw = message.reply_to?.sender?.display_name || message.reply_to?.sender?.username;
+    const raw = replyData?.sender?.display_name || replyData?.sender?.username;
     if (!raw || raw.toLowerCase() === 'user') return 'Message';
     return raw;
   })();
@@ -566,10 +568,10 @@ export function MessageBubble({
             }`}
           >
             {/* Reply Quote Preview if message is a reply */}
-            {message.reply_to && (message.reply_to.content || message.reply_to.message_type !== 'text') && (
+            {replyData && (replyData.content || replyData.message_type !== 'text') && (
               <div
                 onClick={() =>
-                  message.reply_to?.id && onScrollToReply && onScrollToReply(message.reply_to.id)
+                  replyData.id && onScrollToReply && onScrollToReply(replyData.id)
                 }
                 className={`px-2.5 py-1.5 mb-1.5 rounded-xl rounded-l-md text-xs border-l-4 select-none cursor-pointer transition-colors hover:opacity-90 ${
                   isOwn
@@ -581,11 +583,11 @@ export function MessageBubble({
                   {replySenderNameClean}
                 </p>
                 <div className="truncate opacity-90 text-[11px]">
-                  {message.reply_to.message_type === 'image' ? '📷 Photo' :
-                   message.reply_to.message_type === 'video' ? '🎥 Video' :
-                   message.reply_to.message_type === 'voice' || message.reply_to.message_type === 'audio' ? '🎤 Voice message' :
-                   message.reply_to.message_type === 'document' ? '📄 Document' :
-                   <EmojiText text={message.reply_to.content || ''} forceSize="sm" />}
+                  {replyData.message_type === 'image' ? '📷 Photo' :
+                   replyData.message_type === 'video' ? '🎥 Video' :
+                   replyData.message_type === 'voice' || replyData.message_type === 'audio' ? '🎤 Voice message' :
+                   replyData.message_type === 'document' ? '📄 Document' :
+                   <EmojiText text={replyData.content || ''} forceSize="sm" />}
                 </div>
               </div>
             )}

@@ -3,20 +3,24 @@ import { getEmojiSvgUrl } from '@/lib/emoji';
 
 interface Props {
   unicode: string;
-  size?: 'sm' | 'md' | 'lg' | 'jumbo';
+  size?: 'sm' | 'md' | 'lg' | 'xl' | 'jumbo';
   className?: string;
+  animate?: boolean;
 }
 
-export function ChatFlowEmoji({ unicode, size = 'md', className = '' }: Props) {
+export function ChatFlowEmoji({ unicode, size = 'md', className = '', animate = false }: Props) {
   const [loadFailed, setLoadFailed] = useState(false);
   const svgUrl = getEmojiSvgUrl(unicode);
 
   const sizeClasses = {
     sm: 'w-4 h-4 inline-block align-text-bottom mx-0.5 select-none',
-    md: 'w-5 h-5 inline-block align-text-bottom mx-0.5 select-none',
-    lg: 'w-7 h-7 inline-block align-middle mx-1 select-none',
-    jumbo: 'w-12 h-12 inline-block align-middle mx-1.5 transform hover:scale-110 transition-transform select-none',
+    md: 'w-5 h-5 inline-block align-text-bottom mx-[2px] select-none',
+    lg: 'w-[34px] h-[34px] inline-block align-middle mx-1 select-none',
+    xl: 'w-[42px] h-[42px] inline-block align-middle mx-1.5 select-none',
+    jumbo: 'w-12 h-12 inline-block align-middle mx-2 select-none',
   };
+
+  const animationClass = animate ? 'animate-emoji-pop opacity-0' : '';
 
   if (loadFailed) {
     return <span className={`inline-block font-sans ${className}`}>{unicode}</span>;
@@ -28,7 +32,7 @@ export function ChatFlowEmoji({ unicode, size = 'md', className = '' }: Props) {
       alt={unicode}
       draggable={false}
       onError={() => setLoadFailed(true)}
-      className={`${sizeClasses[size]} ${className}`}
+      className={`${sizeClasses[size]} ${animationClass} ${className}`}
       loading="lazy"
     />
   );

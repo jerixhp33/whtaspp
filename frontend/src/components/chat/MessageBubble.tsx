@@ -32,6 +32,7 @@ import { CircularProgressRing } from '@/components/media/CircularProgressRing';
 import { mediaService } from '@/services/media.service';
 import { EmojiText } from '@/components/emoji/EmojiText';
 import { ChatFlowEmoji } from '@/components/emoji/ChatFlowEmoji';
+import { isEmojiOnlyMessage } from '@/lib/emoji';
 
 interface Props {
   message: Message;
@@ -136,6 +137,8 @@ export function MessageBubble({
       setTimeout(() => setCopied(false), 1500);
     }
   };
+
+  const isEmojiOnly = message.message_type === 'text' && !isDeleted && isEmojiOnlyMessage(message.content || '').isEmojiOnly;
 
   const handleTouchStart = () => {
     longPressTimer.current = setTimeout(() => {
@@ -366,7 +369,7 @@ export function MessageBubble({
 
       default:
         return (
-          <div className="break-words text-sm leading-relaxed whitespace-pre-wrap">
+          <div className={`break-words text-sm leading-relaxed whitespace-pre-wrap ${isEmojiOnly ? 'text-center' : ''}`}>
             <span className="selectable-text">
               <EmojiText text={message.content || ''} />
             </span>
@@ -503,10 +506,14 @@ export function MessageBubble({
           )}
 
           <div
-            className={`relative px-3.5 py-2 rounded-2xl shadow-sm ${
-              isOwn
-                ? 'bg-emerald-600 text-white rounded-br-xs'
-                : 'bg-zinc-800 text-zinc-100 rounded-bl-xs'
+            className={`relative rounded-2xl shadow-sm ${
+              isEmojiOnly
+                ? 'bg-transparent py-1 shadow-none'
+                : `px-3.5 py-2 ${
+                    isOwn
+                      ? 'bg-emerald-600 text-white rounded-br-xs'
+                      : 'bg-zinc-800 text-zinc-100 rounded-bl-xs'
+                  }`
             }`}
           >
             {/* Reply Quote Preview if message is a reply */}
@@ -524,7 +531,7 @@ export function MessageBubble({
                 <p className="font-semibold text-[11px]">
                   {replySenderNameClean}
                 </p>
-                <p className="truncate opacity-90">{message.reply_to.content}</p>
+                <div className="truncate opacity-90 text-[11px]"><EmojiText text={message.reply_to.content || ''} /></div>
               </div>
             )}
 
@@ -534,7 +541,7 @@ export function MessageBubble({
             {/* Timestamp & Status */}
             <div
               className={`flex items-center justify-end gap-1 mt-1 -mb-0.5 select-none ${
-                isOwn ? 'text-emerald-200' : 'text-zinc-400'
+                isOwn ? (isEmojiOnly ? 'text-zinc-400' : 'text-emerald-200') : 'text-zinc-400'
               } text-[10px]`}
             >
               <span>{format(new Date(message.created_at || Date.now()), 'HH:mm')}</span>

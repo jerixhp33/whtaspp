@@ -2,6 +2,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { Image, Video, File, Mic } from 'lucide-react';
 import { Conversation } from '@/types';
 import { useAuth } from '@/hooks/useAuth';
+import { EmojiText } from '@/components/emoji/EmojiText';
 
 interface Props {
   conversation: Conversation;
@@ -27,7 +28,7 @@ export function ConversationItem({ conversation, isActive, onClick }: Props) {
       case 'audio':
         return <span className="inline-flex items-center gap-1 text-emerald-400 font-medium"><Mic className="w-3.5 h-3.5 shrink-0" /> Voice message</span>;
       default: 
-        return msg.content;
+        return <div className="truncate"><EmojiText text={msg.content || ''} /></div>;
     }
   };
 

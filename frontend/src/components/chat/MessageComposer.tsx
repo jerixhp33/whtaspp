@@ -7,6 +7,7 @@ import { VoiceRecorder } from '@/components/media/VoiceRecorder';
 import { ChatFlowEmojiPicker } from '@/components/emoji/ChatFlowEmojiPicker';
 import { AttachmentMenu } from './AttachmentMenu';
 import { PreSendMediaModal } from '@/components/media/PreSendMediaModal';
+import { EmojiText } from '@/components/emoji/EmojiText';
 
 interface Props {
   replyMessage?: Message | null;
@@ -47,6 +48,7 @@ export function MessageComposer({
   const { activeConversation, sendTypingSignal } = useChat();
 
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const overlayRef = useRef<HTMLDivElement | null>(null);
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const emojiPickerRef = useRef<HTMLDivElement | null>(null);
 
@@ -58,13 +60,24 @@ export function MessageComposer({
     }
   }, [editingMessage]);
 
-  // Auto-resize textarea
+  // Auto-resize textarea and sync scroll
   useEffect(() => {
     const textarea = textareaRef.current;
     if (!textarea) return;
     textarea.style.height = 'auto';
     textarea.style.height = `${Math.min(140, Math.max(40, textarea.scrollHeight))}px`;
+    
+    // Sync overlay scroll height if overflow occurs
+    if (overlayRef.current) {
+      overlayRef.current.scrollTop = textarea.scrollTop;
+    }
   }, [text]);
+
+  const handleScroll = () => {
+    if (textareaRef.current && overlayRef.current) {
+      overlayRef.current.scrollTop = textareaRef.current.scrollTop;
+    }
+  };
 
   // Click outside listener for Emoji Picker
   useEffect(() => {
@@ -297,16 +310,30 @@ export function MessageComposer({
               <Paperclip className="h-5 w-5" />
             </Button>
 
-            {/* Multiline Text Input */}
+            {/* Multiline Text Input Container */}
             <div className="flex-1 min-w-0 relative">
+              {/* Visual Overlay for Custom Emoji Rendering */}
+              <div 
+                ref={overlayRef}
+                className="absolute inset-0 pointer-events-none py-2 text-sm leading-relaxed whitespace-pre-wrap break-words overflow-hidden"
+                style={{ paddingRight: '0.25rem', paddingLeft: '0.125rem' }}
+                aria-hidden="true"
+              >
+                {text && <EmojiText text={text + (text.endsWith('\n') ? ' ' : '')} animate={true} />}
+              </div>
+              
+              {/* Actual Editable Textarea (Transparent) */}
               <textarea
                 ref={textareaRef}
                 value={text}
                 onChange={handleInputChange}
                 onKeyDown={handleKeyDown}
+                onScroll={handleScroll}
                 placeholder={navigator.onLine ? 'Type a message...' : 'Offline — messages will queue...'}
-                className="w-full max-h-32 min-h-[40px] bg-transparent border-0 focus:ring-0 resize-none py-2 text-zinc-100 placeholder-zinc-500 text-sm leading-relaxed selectable-text"
+                className="w-full max-h-32 min-h-[40px] bg-transparent border-0 focus:ring-0 resize-none py-2 text-transparent caret-white placeholder-zinc-500 text-sm leading-relaxed selection:bg-emerald-500/40 selection:text-transparent overflow-y-auto"
                 rows={1}
+                style={{ paddingRight: '0.25rem', paddingLeft: '0.125rem' }}
+                spellCheck={false}
               />
             </div>
 

@@ -5,22 +5,25 @@ import { ChatFlowEmoji } from './ChatFlowEmoji';
 interface Props {
   text: string;
   className?: string;
+  animate?: boolean;
 }
 
-export function EmojiText({ text, className = '' }: Props) {
+export function EmojiText({ text, className = '', animate = false }: Props) {
   if (!text) return null;
 
   const { isEmojiOnly, count } = isEmojiOnlyMessage(text);
 
   if (isEmojiOnly) {
     const emojis = text.trim().match(UNICODE_EMOJI_REGEX) || [];
+    const size = count === 1 ? 'jumbo' : count <= 3 ? 'xl' : 'lg';
     return (
       <div className={`flex items-center gap-1.5 py-1 ${className}`}>
         {emojis.map((emoji, idx) => (
           <ChatFlowEmoji
-            key={idx}
+            key={`${idx}-${emoji}`}
             unicode={emoji}
-            size={count === 1 ? 'jumbo' : 'lg'}
+            size={size}
+            animate={animate}
           />
         ))}
       </div>
@@ -46,8 +49,15 @@ export function EmojiText({ text, className = '' }: Props) {
 
     // Push emoji component
     const emojiUnicode = match[0];
+    const isLastElement = lastIndex + match[0].length === text.length;
+    
     parts.push(
-      <ChatFlowEmoji key={`emoji-${matchStart}`} unicode={emojiUnicode} size="md" />
+      <ChatFlowEmoji 
+        key={`emoji-${matchStart}-${emojiUnicode}`} 
+        unicode={emojiUnicode} 
+        size="md" 
+        animate={animate} 
+      />
     );
 
     lastIndex = matchEnd;

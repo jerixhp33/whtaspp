@@ -2,9 +2,10 @@ import { useState } from 'react';
 import { format } from 'date-fns';
 import { Message } from '@/types';
 import { useAuth } from '@/hooks/useAuth';
-import { CheckCheck, Reply, Download, FileText, Film, ExternalLink } from 'lucide-react';
+import { CheckCheck, Reply, Download, FileText, MoreHorizontal, Smile, Trash2, Edit2, Share } from 'lucide-react';
 import { VoiceMessagePlayer } from '@/components/media/VoiceMessagePlayer';
 import { ImageViewer } from '@/components/media/ImageViewer';
+import { supabase } from '@/lib/supabase';
 
 interface Props {
   message: Message;
@@ -12,12 +13,18 @@ interface Props {
   onReply?: (msg: Message) => void;
 }
 
+const EMOJI_REACTIONS = ['❤️', '😂', '👍', '🔥', '😮', '😢'];
+
 export function MessageBubble({ message, showAvatar = true, onReply }: Props) {
   const { user } = useAuth();
   const [fullscreenImage, setFullscreenImage] = useState<string | null>(null);
+  const [showReactionsMenu, setShowReactionsMenu] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editContent, setEditContent] = useState(message.content || '');
 
   const isOwn = message.sender_id === user?.id;
   const isRead = message.reads && message.reads.length > 0;
+  const isDeleted = message.is_deleted;
 
   // Attachment data
   const attachment = message.attachments?.[0];
@@ -31,7 +38,82 @@ export function MessageBubble({ message, showAvatar = true, onReply }: Props) {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
+  const handleAddReaction = async (emoji: string) => {
+    if (!user) return;
+    try {
+      await supabase
+        .from('message_reactions')
+        .upsert({
+          message_id: message.id,
+          user_id: user.id,
+          emoji
+        });
+      setShowReactionsMenu(false);
+    } catch (err) {
+      console.error('Failed to add reaction:', err);
+    }
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editContent.trim()) return;
+    try {
+      await supabase
+        .from('messages')
+        .update({ content: editContent, is_edited: true })
+        .eq('id', message.id);
+      setIsEditing(false);
+    } catch (err) {
+      console.error('Failed to edit message:', err);
+    }
+  };
+
+  const handleDeleteMessage = async () => {
+    if (!confirm('Delete this message for everyone?')) return;
+    try {
+      await supabase
+        .from('messages')
+        .update({ is_deleted: true, content: 'This message was deleted' })
+        .eq('id', message.id);
+    } catch (err) {
+      console.error('Failed to delete message:', err);
+    }
+  };
+
   const renderContent = () => {
+    if (isDeleted) {
+      return (
+        <p className="italic text-zinc-400 text-xs py-0.5">
+          🚫 This message was deleted
+        </p>
+      );
+    }
+
+    if (isEditing) {
+      return (
+        <div className="flex flex-col gap-2 my-1">
+          <textarea
+            value={editContent}
+            onChange={(e) => setEditContent(e.target.value)}
+            className="w-full bg-zinc-900 text-zinc-100 text-sm p-2 rounded-lg border border-zinc-700 focus:outline-none"
+          />
+          <div className="flex justify-end gap-2">
+            <button
+              onClick={() => setIsEditing(false)}
+              className="text-xs text-zinc-400 hover:text-white px-2 py-1"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSaveEdit}
+              className="text-xs bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1 rounded-md"
+            >
+              Save
+            </button>
+          </div>
+        </div>
+      );
+    }
+
     switch (message.message_type) {
       case 'voice':
       case 'audio':
@@ -110,6 +192,7 @@ export function MessageBubble({ message, showAvatar = true, onReply }: Props) {
         return (
           <div className="break-words text-sm leading-relaxed whitespace-pre-wrap">
             {message.content}
+            {message.is_edited && <span className="text-[10px] opacity-60 ml-1.5">(edited)</span>}
           </div>
         );
     }
@@ -117,7 +200,7 @@ export function MessageBubble({ message, showAvatar = true, onReply }: Props) {
 
   return (
     <div className={`flex w-full ${isOwn ? 'justify-end' : 'justify-start'} group relative my-1`}>
-      <div className={`flex max-w-[85%] sm:max-w-[75%] ${isOwn ? 'flex-row-reverse' : 'flex-row'} items-end gap-2`}>
+      <div className={`flex max-w-[85%] sm:max-w-[75%] ${isOwn ? 'flex-row-reverse' : 'flex-row'} items-end gap-1.5`}>
         
         {/* Sender Avatar */}
         {!isOwn && showAvatar && (
@@ -158,7 +241,7 @@ export function MessageBubble({ message, showAvatar = true, onReply }: Props) {
               </div>
             )}
 
-            {/* Message Content Rendered by Type */}
+            {/* Message Content */}
             {renderContent()}
             
             {/* Timestamp & Read Receipt */}
@@ -173,18 +256,79 @@ export function MessageBubble({ message, showAvatar = true, onReply }: Props) {
               )}
             </div>
           </div>
+
+          {/* Reactions bar if present */}
+          {message.reactions && message.reactions.length > 0 && (
+            <div className="flex gap-1 mt-1 px-1">
+              {message.reactions.map((r, i) => (
+                <span key={i} className="text-xs bg-zinc-900/80 border border-zinc-800 px-1.5 py-0.5 rounded-full shadow-sm">
+                  {r.emoji}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
 
-        {/* Hover Action: Reply */}
-        {onReply && (
-          <button 
-            type="button"
-            onClick={() => onReply(message)}
-            className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-full hover:bg-zinc-800 text-zinc-400 hover:text-white self-center"
-            title="Reply"
-          >
-            <Reply className="h-4 w-4" />
-          </button>
+        {/* Hover Action Bar: Reply, React, Edit, Delete */}
+        {!isDeleted && (
+          <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 self-center bg-zinc-900/90 border border-zinc-800 px-1.5 py-1 rounded-full shadow-lg">
+            {onReply && (
+              <button 
+                type="button"
+                onClick={() => onReply(message)}
+                className="p-1 text-zinc-400 hover:text-white rounded-full hover:bg-zinc-800"
+                title="Reply"
+              >
+                <Reply className="h-3.5 w-3.5" />
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={() => setShowReactionsMenu(!showReactionsMenu)}
+              className="p-1 text-zinc-400 hover:text-amber-400 rounded-full hover:bg-zinc-800"
+              title="React"
+            >
+              <Smile className="h-3.5 w-3.5" />
+            </button>
+
+            {isOwn && message.message_type === 'text' && (
+              <button
+                type="button"
+                onClick={() => setIsEditing(!isEditing)}
+                className="p-1 text-zinc-400 hover:text-blue-400 rounded-full hover:bg-zinc-800"
+                title="Edit message"
+              >
+                <Edit2 className="h-3.5 w-3.5" />
+              </button>
+            )}
+
+            {isOwn && (
+              <button
+                type="button"
+                onClick={handleDeleteMessage}
+                className="p-1 text-zinc-400 hover:text-red-400 rounded-full hover:bg-zinc-800"
+                title="Delete message"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            )}
+
+            {/* Quick Emoji Reaction Popup */}
+            {showReactionsMenu && (
+              <div className="absolute bottom-8 right-0 bg-zinc-950 border border-zinc-800 rounded-full px-2 py-1 flex items-center gap-1.5 shadow-2xl z-30 animate-in fade-in zoom-in-95">
+                {EMOJI_REACTIONS.map((emoji) => (
+                  <button
+                    key={emoji}
+                    onClick={() => handleAddReaction(emoji)}
+                    className="hover:scale-125 transition-transform text-sm p-1"
+                  >
+                    {emoji}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         )}
       </div>
 

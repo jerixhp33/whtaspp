@@ -45,7 +45,7 @@ export function MediaViewerModal({ items, initialIndex = 0, isOpen, onClose }: P
     setPosition({ x: 0, y: 0 });
 
     let active = true;
-    mediaService.getSignedUrl(currentItem.url).then((url) => {
+    mediaService.getSignedUrl(currentItem.url, 'message-media').then((url) => {
       if (active) {
         setResolvedUrl(url || currentItem.url);
         setLoading(false);

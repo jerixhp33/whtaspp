@@ -138,7 +138,11 @@ export function MessageBubble({
     }
   };
 
-  const isEmojiOnly = message.message_type === 'text' && !isDeleted && !message.reply_to && isEmojiOnlyMessage(message.content || '').isEmojiOnly;
+  const emojiOnlyInfo = message.message_type === 'text' && !isDeleted && !message.reply_to 
+    ? isEmojiOnlyMessage(message.content || '') 
+    : { isEmojiOnly: false, count: 0 };
+  const isEmojiOnly = emojiOnlyInfo.isEmojiOnly;
+  const isSingleEmoji = isEmojiOnly && emojiOnlyInfo.count === 1;
 
   const [swipeOffset, setSwipeOffset] = useState(0);
   const touchStartX = useRef<number | null>(null);
@@ -572,7 +576,7 @@ export function MessageBubble({
 
           <div
             className={`relative shadow-sm ${
-              isEmojiOnly
+              isSingleEmoji
                 ? 'bg-transparent py-1 shadow-none rounded-2xl'
                 : `px-3 py-1.5 text-[15px] leading-snug ${
                     isOwn
@@ -612,10 +616,12 @@ export function MessageBubble({
             {/* Timestamp & Status */}
             <div
               className={`flex items-center justify-end gap-1 mt-1 -mb-0.5 select-none ${
-                isOwn ? (isEmojiOnly ? 'text-zinc-400' : 'text-emerald-200') : 'text-zinc-400'
-              } text-[10px]`}
+                isSingleEmoji ? 'bg-black/20 px-1.5 py-0.5 rounded-full inline-flex self-end' : ''
+              }`}
             >
-              <span>{format(new Date(message.created_at || Date.now()), 'HH:mm')}</span>
+              <span className={`text-[10px] ${isOwn && !isSingleEmoji ? 'text-emerald-100/90' : 'text-zinc-400'}`}>
+                {format(new Date(message.created_at || Date.now()), 'HH:mm')}
+              </span>
               {renderStatus()}
             </div>
           </div>

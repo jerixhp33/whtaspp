@@ -13,11 +13,11 @@ export function ChatFlowEmoji({ unicode, size = 'md', className = '', animate = 
   const svgUrl = getEmojiSvgUrl(unicode);
 
   const sizeClasses = {
-    sm: 'w-4 h-4 inline-block align-text-bottom mx-0.5 select-none',
-    md: 'w-5 h-5 inline-block align-text-bottom mx-[2px] select-none',
-    lg: 'w-[34px] h-[34px] inline-block align-middle mx-1 select-none',
-    xl: 'w-[42px] h-[42px] inline-block align-middle mx-1.5 select-none',
-    jumbo: 'w-12 h-12 inline-block align-middle mx-2 select-none',
+    sm: 'w-4 h-4 inline-block align-text-bottom mx-[1px] select-none',
+    md: 'w-5 h-5 inline-block align-text-bottom mx-[1.5px] select-none',
+    lg: 'w-[34px] h-[34px] inline-block align-middle mx-[2px] select-none',
+    xl: 'w-[42px] h-[42px] inline-block align-middle mx-[2px] select-none',
+    jumbo: 'w-12 h-12 inline-block align-middle mx-[2px] select-none',
   };
 
   const animationClass = animate ? 'animate-emoji-pop opacity-0' : '';

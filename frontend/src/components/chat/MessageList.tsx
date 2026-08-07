@@ -298,19 +298,18 @@ export function MessageList({ onReply, onEdit, messagesHook }: Props) {
         <div ref={bottomRef} />
       </div>
 
-      {/* Floating "↓ New messages" pill button */}
+      {/* Floating Scroll to Bottom / New messages button */}
       {showScrollBottomBtn && (
-        <div className="absolute bottom-4 right-4 z-20 animate-bounce select-none">
+        <div className="absolute bottom-4 right-4 z-20 select-none">
           <Button
             type="button"
             onClick={() => scrollToBottom('smooth')}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-xl rounded-full text-xs font-semibold px-3 py-1.5 flex items-center gap-1.5 border border-emerald-400/30 cursor-pointer"
+            className="relative bg-zinc-800/95 hover:bg-zinc-700 text-zinc-300 shadow-xl rounded-full h-10 w-10 p-0 flex items-center justify-center border border-zinc-700/50 cursor-pointer backdrop-blur-sm transition-transform active:scale-95"
           >
-            <ArrowDown className="h-4 w-4" />
-            <span>New messages</span>
+            <ArrowDown className="h-5 w-5" />
             {unreadCount > 0 && (
-              <span className="bg-white text-emerald-700 text-[10px] font-extrabold px-1.5 py-0.5 rounded-full ml-0.5">
-                {unreadCount}
+              <span className="absolute -top-1 -right-1 bg-emerald-500 text-white text-[10px] font-bold h-5 min-w-[20px] px-1 flex items-center justify-center rounded-full border-2 border-zinc-950 shadow-sm animate-pulse-subtle">
+                {unreadCount > 99 ? '99+' : unreadCount}
               </span>
             )}
           </Button>

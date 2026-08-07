@@ -17,7 +17,7 @@ export const useMessages = (conversationId?: string) => {
       try {
         const { data, error } = await supabase
           .from('messages')
-          .select('*, sender:profiles!sender_id(*)')
+          .select('*, sender:profiles!sender_id(*), attachments:message_attachments(*), reply_to:messages!reply_to_id(*, sender:profiles!sender_id(*))')
           .eq('conversation_id', conversationId)
           .order('created_at', { ascending: true });
 
@@ -33,35 +33,40 @@ export const useMessages = (conversationId?: string) => {
 
     fetchMessages();
 
-    // Subscribe to Supabase Realtime for new messages in this conversation
+    // Subscribe to Supabase Realtime for new or updated messages in this conversation
     const channel = supabase
       .channel(`messages:${conversationId}`)
       .on(
         'postgres_changes',
         {
-          event: 'INSERT',
+          event: '*',
           schema: 'public',
           table: 'messages',
           filter: `conversation_id=eq.${conversationId}`,
         },
         async (payload) => {
-          const newMsg = payload.new as any;
-          // Fetch sender profile for the new message
-          const { data: senderData } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', newMsg.sender_id)
-            .single();
+          if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+            const newMsg = payload.new as any;
+            
+            // Fetch complete message with sender profile, attachments, and reply_to
+            const { data: fullMsgData } = await supabase
+              .from('messages')
+              .select('*, sender:profiles!sender_id(*), attachments:message_attachments(*), reply_to:messages!reply_to_id(*, sender:profiles!sender_id(*))')
+              .eq('id', newMsg.id)
+              .single();
 
-          const fullMsg = {
-            ...newMsg,
-            sender: senderData || null,
-          };
-
-          setMessages((prev) => {
-            if (prev.some((m) => m.id === fullMsg.id)) return prev;
-            return [...prev, fullMsg];
-          });
+            if (fullMsgData) {
+              setMessages((prev) => {
+                const index = prev.findIndex((m) => m.id === fullMsgData.id);
+                if (index >= 0) {
+                  const updated = [...prev];
+                  updated[index] = fullMsgData as any;
+                  return updated;
+                }
+                return [...prev, fullMsgData as any];
+              });
+            }
+          }
         }
       )
       .subscribe();

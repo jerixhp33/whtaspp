@@ -63,10 +63,28 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         .from('conversations')
         .select('*, conversation_members(*, profiles(*)), groups(*)')
         .in('id', convIds)
-        .order('updated_at', { ascending: false });
+        .order('last_message_at', { ascending: false });
 
       if (!convErr && convData) {
-        setConversations(convData as any);
+        // Fetch last message for each conversation
+        const fullConvs = await Promise.all(
+          convData.map(async (conv: any) => {
+            const { data: lastMsgData } = await supabase
+              .from('messages')
+              .select('*')
+              .eq('conversation_id', conv.id)
+              .order('created_at', { ascending: false })
+              .limit(1)
+              .maybeSingle();
+
+            return {
+              ...conv,
+              last_message: lastMsgData || null
+            };
+          })
+        );
+
+        setConversations(fullConvs as any);
       }
     } catch (err) {
       console.error('Failed to fetch conversations:', err);
@@ -77,6 +95,59 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     fetchConversations();
+  }, [user?.id]);
+
+  // Realtime subscription for conversation updates & new messages across all user's chats
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const convChannel = supabase
+      .channel('global-conversations-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'conversations'
+        },
+        () => {
+          fetchConversations();
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages'
+        },
+        async (payload) => {
+          const newMsg = payload.new as any;
+          // Update conversations list state locally
+          setConversations(prev => {
+            const index = prev.findIndex(c => c.id === newMsg.conversation_id);
+            if (index < 0) {
+              fetchConversations();
+              return prev;
+            }
+
+            const updatedConv = {
+              ...prev[index],
+              last_message: newMsg,
+              last_message_at: newMsg.created_at,
+              updated_at: newMsg.created_at
+            };
+
+            const filtered = prev.filter(c => c.id !== newMsg.conversation_id);
+            return [updatedConv, ...filtered];
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(convChannel);
+    };
   }, [user?.id]);
 
   // Presence Subscription (Online / Offline status)

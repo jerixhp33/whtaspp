@@ -17,11 +17,17 @@ export function ConversationItem({ conversation, isActive, onClick }: Props) {
     const msg = conversation.last_message;
     
     switch(msg.message_type) {
-      case 'image': return <><Image className="inline w-3 h-3 mr-1" /> Photo</>;
-      case 'video': return <><Video className="inline w-3 h-3 mr-1" /> Video</>;
-      case 'document': return <><File className="inline w-3 h-3 mr-1" /> Document</>;
-      case 'voice': return <><Mic className="inline w-3 h-3 mr-1" /> Voice message</>;
-      default: return msg.content;
+      case 'image': 
+        return <span className="inline-flex items-center gap-1 text-zinc-300"><Image className="w-3.5 h-3.5 text-blue-400 shrink-0" /> Photo</span>;
+      case 'video': 
+        return <span className="inline-flex items-center gap-1 text-zinc-300"><Video className="w-3.5 h-3.5 text-purple-400 shrink-0" /> Video</span>;
+      case 'document': 
+        return <span className="inline-flex items-center gap-1 text-zinc-300"><File className="w-3.5 h-3.5 text-amber-400 shrink-0" /> Document</span>;
+      case 'voice':
+      case 'audio':
+        return <span className="inline-flex items-center gap-1 text-emerald-400 font-medium"><Mic className="w-3.5 h-3.5 shrink-0" /> Voice message</span>;
+      default: 
+        return msg.content;
     }
   };
 
@@ -68,9 +74,9 @@ export function ConversationItem({ conversation, isActive, onClick }: Props) {
           )}
         </div>
         <div className="flex justify-between items-center">
-          <p className="text-xs text-zinc-400 truncate">
+          <div className="text-xs text-zinc-400 truncate">
             {renderLastMessage()}
-          </p>
+          </div>
           {conversation.unread_count > 0 && (
             <span className="bg-emerald-500 text-zinc-950 text-xs font-bold px-2 py-0.5 rounded-full ml-2">
               {conversation.unread_count}

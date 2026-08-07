@@ -68,7 +68,7 @@ export function MessageBubble({ message, showAvatar = true, onReply }: Props) {
               <span>{format(new Date(message.created_at), 'HH:mm')}</span>
               {isOwn && (
                 isRead ? (
-                  <CheckCheck className="w-3.5 h-3.5 text-cyan-300" />
+                  <CheckCheck className="w-3.5 h-3.5 text-sky-400 font-bold" />
                 ) : (
                   <CheckCheck className="w-3.5 h-3.5 opacity-70" />
                 )

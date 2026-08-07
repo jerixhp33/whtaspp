@@ -1,10 +1,39 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Message } from '../types';
 import { supabase } from '../lib/supabase';
+
+const MESSAGE_SELECT_QUERY = `
+  *,
+  sender:profiles!sender_id(*),
+  attachments:message_attachments(*),
+  reactions:message_reactions(*),
+  reads:message_reads(*),
+  reply_to:messages!reply_to_id(*, sender:profiles!sender_id(*))
+`;
 
 export const useMessages = (conversationId?: string) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
+
+  const fetchFullMessage = useCallback(async (messageId: string) => {
+    const { data, error } = await supabase
+      .from('messages')
+      .select(MESSAGE_SELECT_QUERY)
+      .eq('id', messageId)
+      .single();
+
+    if (!error && data) {
+      setMessages((prev) => {
+        const index = prev.findIndex((m) => m.id === data.id);
+        if (index >= 0) {
+          const updated = [...prev];
+          updated[index] = data as any;
+          return updated;
+        }
+        return [...prev, data as any];
+      });
+    }
+  }, []);
 
   useEffect(() => {
     if (!conversationId) {
@@ -17,7 +46,7 @@ export const useMessages = (conversationId?: string) => {
       try {
         const { data, error } = await supabase
           .from('messages')
-          .select('*, sender:profiles!sender_id(*), attachments:message_attachments(*), reply_to:messages!reply_to_id(*, sender:profiles!sender_id(*))')
+          .select(MESSAGE_SELECT_QUERY)
           .eq('conversation_id', conversationId)
           .order('created_at', { ascending: true });
 
@@ -33,9 +62,9 @@ export const useMessages = (conversationId?: string) => {
 
     fetchMessages();
 
-    // Subscribe to Supabase Realtime for new or updated messages in this conversation
+    // Subscribe to Supabase Realtime for messages, attachments, reactions, and reads
     const channel = supabase
-      .channel(`messages:${conversationId}`)
+      .channel(`conversation-live-${conversationId}`)
       .on(
         'postgres_changes',
         {
@@ -45,27 +74,56 @@ export const useMessages = (conversationId?: string) => {
           filter: `conversation_id=eq.${conversationId}`,
         },
         async (payload) => {
-          if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
-            const newMsg = payload.new as any;
-            
-            // Fetch complete message with sender profile, attachments, and reply_to
-            const { data: fullMsgData } = await supabase
-              .from('messages')
-              .select('*, sender:profiles!sender_id(*), attachments:message_attachments(*), reply_to:messages!reply_to_id(*, sender:profiles!sender_id(*))')
-              .eq('id', newMsg.id)
-              .single();
-
-            if (fullMsgData) {
-              setMessages((prev) => {
-                const index = prev.findIndex((m) => m.id === fullMsgData.id);
-                if (index >= 0) {
-                  const updated = [...prev];
-                  updated[index] = fullMsgData as any;
-                  return updated;
-                }
-                return [...prev, fullMsgData as any];
-              });
+          if (payload.eventType === 'DELETE') {
+            const oldId = (payload.old as any)?.id;
+            if (oldId) {
+              setMessages((prev) => prev.filter((m) => m.id !== oldId));
             }
+          } else if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+            const newMsg = payload.new as any;
+            await fetchFullMessage(newMsg.id);
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'message_attachments',
+        },
+        async (payload) => {
+          const newAttachment = (payload.new as any) || (payload.old as any);
+          if (newAttachment?.message_id) {
+            await fetchFullMessage(newAttachment.message_id);
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'message_reactions',
+        },
+        async (payload) => {
+          const reaction = (payload.new as any) || (payload.old as any);
+          if (reaction?.message_id) {
+            await fetchFullMessage(reaction.message_id);
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'message_reads',
+        },
+        async (payload) => {
+          const read = (payload.new as any);
+          if (read?.message_id) {
+            await fetchFullMessage(read.message_id);
           }
         }
       )
@@ -74,7 +132,7 @@ export const useMessages = (conversationId?: string) => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [conversationId]);
+  }, [conversationId, fetchFullMessage]);
 
-  return { messages, setMessages, loading };
+  return { messages, setMessages, loading, refetchMessage: fetchFullMessage };
 };

@@ -3,26 +3,40 @@ import { Bell, Camera, Mic, Users, ShieldCheck, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 export function PermissionsModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
-  const [notificationGranted, setNotificationGranted] = useState(Notification.permission === 'granted');
+  const [notificationGranted, setNotificationGranted] = useState(
+    typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted'
+  );
   const [mediaGranted, setMediaGranted] = useState(false);
   const [contactsGranted, setContactsGranted] = useState(true);
 
   if (!isOpen) return null;
 
   const handleRequestNotification = async () => {
-    if ('Notification' in window) {
-      const res = await Notification.requestPermission();
-      if (res === 'granted') setNotificationGranted(true);
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      try {
+        const res = await Notification.requestPermission();
+        if (res === 'granted') setNotificationGranted(true);
+      } catch (err) {
+        console.warn('Notification permission error:', err);
+      }
     }
   };
 
   const handleRequestMedia = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
-      stream.getTracks().forEach(track => track.stop());
+      // Request audio & video with fallback
+      let stream: MediaStream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+      } catch (camErr) {
+        // Fallback to audio only if webcam is not present or blocked
+        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      }
+      stream.getTracks().forEach((track) => track.stop());
       setMediaGranted(true);
     } catch (err) {
       console.error('Media permission denied:', err);
+      alert('Microphone/Camera permission denied. Please enable them in your browser site settings.');
     }
   };
 
@@ -35,7 +49,7 @@ export function PermissionsModal({ isOpen, onClose }: { isOpen: boolean; onClose
           </div>
           <h2 className="text-xl font-bold text-white tracking-tight">App Permissions</h2>
           <p className="text-xs text-zinc-400 max-w-xs mx-auto">
-            Enable permissions for real-time notifications, HD calls, and contact discovery in ChatFlow.
+            Enable permissions for real-time notifications, HD voice & video calls, and contact discovery in ChatFlow.
           </p>
         </div>
 

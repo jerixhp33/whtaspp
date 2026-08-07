@@ -38,7 +38,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   const [typingUsernames, setTypingUsernames] = useState<Record<string, string>>({});
   const [typingChannel, setTypingChannel] = useState<any>(null);
 
-  const fetchConversations = async () => {
+  const fetchConversations = useCallback(async () => {
     if (!user?.id) {
       setConversations([]);
       setLoading(false);
@@ -93,13 +93,13 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user?.id]);
 
   useEffect(() => {
     fetchConversations();
-  }, [user?.id]);
+  }, [fetchConversations]);
 
-  // Realtime subscription for conversation updates & new messages across all user's chats
+  // Realtime subscription for conversation updates, memberships & new messages across all user's chats
   useEffect(() => {
     if (!user?.id) return;
 
@@ -119,14 +119,26 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       .on(
         'postgres_changes',
         {
+          event: '*',
+          schema: 'public',
+          table: 'conversation_members',
+          filter: `user_id=eq.${user.id}`
+        },
+        () => {
+          fetchConversations();
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
           event: 'INSERT',
           schema: 'public',
           table: 'messages'
         },
         async (payload) => {
           const newMsg = payload.new as any;
-          setConversations(prev => {
-            const index = prev.findIndex(c => c.id === newMsg.conversation_id);
+          setConversations((prev) => {
+            const index = prev.findIndex((c) => c.id === newMsg.conversation_id);
             if (index < 0) {
               fetchConversations();
               return prev;
@@ -140,7 +152,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
               updated_at: newMsg.created_at
             };
 
-            const filtered = prev.filter(c => c.id !== newMsg.conversation_id);
+            const filtered = prev.filter((c) => c.id !== newMsg.conversation_id);
             return [updatedConv, ...filtered];
           });
         }
@@ -150,7 +162,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     return () => {
       supabase.removeChannel(convChannel);
     };
-  }, [user?.id]);
+  }, [user?.id, fetchConversations]);
 
   // Presence Subscription (Online / Offline status)
   useEffect(() => {

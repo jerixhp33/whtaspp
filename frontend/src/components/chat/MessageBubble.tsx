@@ -509,9 +509,19 @@ export function MessageBubble({
         isSelected ? 'bg-emerald-500/10 rounded-xl p-1 -m-1' : ''
       }`}
       onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
       onContextMenu={handleContextMenu}
     >
+      {/* Swipe to reply icon indicator */}
+      {swipeOffset > 10 && (
+        <div 
+          className="absolute left-0 top-1/2 -translate-y-1/2 flex items-center justify-center rounded-full bg-zinc-800 text-zinc-300 w-8 h-8 shadow-md"
+          style={{ opacity: Math.min(1, swipeOffset / 40) }}
+        >
+          <Reply className="h-4 w-4" />
+        </div>
+      )}
       {/* Multi-Select Checkbox */}
       {isSelectMode && (
         <button
@@ -532,6 +542,10 @@ export function MessageBubble({
         className={`flex max-w-[88%] sm:max-w-[75%] ${
           isOwn ? 'flex-row-reverse' : 'flex-row'
         } items-end gap-1.5`}
+        style={{ 
+          transform: `translateX(${swipeOffset}px)`, 
+          transition: touchStartX.current ? 'none' : 'transform 0.2s ease-out' 
+        }}
       >
         {/* Sender Avatar in Group Chat */}
         {!isOwn && isGroup && showAvatar && (

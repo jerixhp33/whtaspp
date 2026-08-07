@@ -21,19 +21,21 @@ export const useMediaUpload = () => {
 
     try {
       let bucket = 'message-media';
-      const fileType = file.type || 'application/octet-stream';
+      const rawType = file.type || 'application/octet-stream';
+      const cleanContentType = rawType.split(';')[0];
       const fileName = customFileName || (file as File).name || `file_${Date.now()}`;
 
-      if (fileType.startsWith('audio/')) {
+      if (cleanContentType.startsWith('audio/')) {
         bucket = 'voice-messages';
-      } else if (fileType.startsWith('image/') || fileType.startsWith('video/')) {
+      } else if (cleanContentType.startsWith('image/') || cleanContentType.startsWith('video/')) {
         bucket = 'message-media';
       } else {
         bucket = 'documents';
       }
 
-      // Generate unique file path
-      const ext = fileName.split('.').pop() || 'bin';
+      // Generate clean file path
+      const extParts = fileName.split('.');
+      const ext = extParts.length > 1 ? extParts.pop() : 'webm';
       const path = `${Date.now()}_${Math.random().toString(36).substring(2, 8)}.${ext}`;
 
       setProgress(40);
@@ -41,11 +43,13 @@ export const useMediaUpload = () => {
       const { data, error: uploadErr } = await supabase.storage
         .from(bucket)
         .upload(path, file, {
+          contentType: cleanContentType,
           cacheControl: '3600',
-          upsert: false
+          upsert: true
         });
 
       if (uploadErr || !data) {
+        console.error('Supabase storage upload error details:', uploadErr);
         throw uploadErr || new Error('Upload failed');
       }
 
@@ -61,7 +65,7 @@ export const useMediaUpload = () => {
       return {
         file_url: urlData.publicUrl,
         file_name: fileName,
-        file_type: fileType,
+        file_type: cleanContentType,
         file_size: file.size,
         bucket,
       };

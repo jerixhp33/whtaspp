@@ -5,6 +5,8 @@ export interface Profile {
   display_name: string;
   email: string;
   phone?: string;
+  phone_number_normalized?: string;
+  phone_discoverable?: boolean;
   avatar_url?: string;
   bio: string;
   status: string;

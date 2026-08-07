@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Search, UserPlus, MessageSquare, Loader2, Phone, Contact } from 'lucide-react';
+import { Search, UserPlus, MessageSquare, Loader2, Phone, Smartphone } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Profile } from '@/types';
@@ -7,6 +7,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useChat } from '@/hooks/useChat';
 import { supabase } from '@/lib/supabase';
 import { UserSearch } from './UserSearch';
+import { PhoneContactsView } from './PhoneContactsView';
 
 export function ContactList() {
   const { user } = useAuth();
@@ -15,6 +16,7 @@ export function ContactList() {
   const [contacts, setContacts] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAddContactOpen, setIsAddContactOpen] = useState(false);
+  const [isPhoneContactsOpen, setIsPhoneContactsOpen] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -79,7 +81,7 @@ export function ContactList() {
       // Create new private conversation
       const { data: convData, error: convError } = await supabase
         .from('conversations')
-        .insert({ type: 'private' })
+        .insert({ type: 'private', created_by: user.id })
         .select()
         .single();
 
@@ -88,7 +90,7 @@ export function ContactList() {
       const { error: membersError } = await supabase
         .from('conversation_members')
         .insert([
-          { conversation_id: convData.id, user_id: user.id, role: 'member' },
+          { conversation_id: convData.id, user_id: user.id, role: 'owner' },
           { conversation_id: convData.id, user_id: contact.id, role: 'member' }
         ]);
 
@@ -97,7 +99,7 @@ export function ContactList() {
       const fullConv: any = {
         ...convData,
         members: [
-          { conversation_id: convData.id, user_id: user.id, role: 'member', profile: null },
+          { conversation_id: convData.id, user_id: user.id, role: 'owner', profile: null },
           { conversation_id: convData.id, user_id: contact.id, role: 'member', profile: contact }
         ]
       };
@@ -121,15 +123,26 @@ export function ContactList() {
       <div className="p-4 border-b border-zinc-800">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-semibold">Contacts</h2>
-          <Button 
-            size="icon" 
-            variant="ghost" 
-            onClick={() => setIsAddContactOpen(true)}
-            className="h-8 w-8 text-zinc-400 hover:text-white hover:bg-zinc-800"
-            title="Add New Contact"
-          >
-            <UserPlus className="h-5 w-5" />
-          </Button>
+          <div className="flex items-center gap-1">
+            <Button 
+              size="icon" 
+              variant="ghost" 
+              onClick={() => setIsPhoneContactsOpen(true)}
+              className="h-8 w-8 text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10"
+              title="Phone Contacts (Address Book)"
+            >
+              <Smartphone className="h-5 w-5" />
+            </Button>
+            <Button 
+              size="icon" 
+              variant="ghost" 
+              onClick={() => setIsAddContactOpen(true)}
+              className="h-8 w-8 text-zinc-400 hover:text-white hover:bg-zinc-800"
+              title="Add New Contact"
+            >
+              <UserPlus className="h-5 w-5" />
+            </Button>
+          </div>
         </div>
         
         <div className="relative">
@@ -150,12 +163,18 @@ export function ContactList() {
             <span className="text-sm">Loading contacts...</span>
           </div>
         ) : filteredContacts.length === 0 ? (
-          <div className="text-center p-8 text-zinc-500">
+          <div className="text-center p-8 text-zinc-500 flex flex-col items-center">
             <p className="text-sm mb-4">No contacts found.</p>
-            <Button onClick={() => setIsAddContactOpen(true)} className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs">
-              <UserPlus className="h-4 w-4 mr-1.5" />
-              Add Contact
-            </Button>
+            <div className="flex gap-2">
+              <Button onClick={() => setIsPhoneContactsOpen(true)} className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs gap-1.5">
+                <Smartphone className="h-4 w-4" />
+                Phone Contacts
+              </Button>
+              <Button onClick={() => setIsAddContactOpen(true)} variant="outline" className="border-zinc-800 bg-zinc-900 text-xs gap-1.5">
+                <UserPlus className="h-4 w-4" />
+                Add Contact
+              </Button>
+            </div>
           </div>
         ) : (
           <div className="space-y-1">
@@ -198,6 +217,7 @@ export function ContactList() {
         )}
       </div>
 
+      {/* Add Contact Modal */}
       {isAddContactOpen && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-zinc-950 border border-zinc-800 rounded-xl w-full max-w-md shadow-2xl flex flex-col max-h-[85vh] relative">
@@ -210,6 +230,23 @@ export function ContactList() {
               ✕
             </Button>
             <UserSearch />
+          </div>
+        </div>
+      )}
+
+      {/* Phone Contacts Modal */}
+      {isPhoneContactsOpen && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-zinc-950 border border-zinc-800 rounded-2xl w-full max-w-md shadow-2xl flex flex-col h-[85vh] relative overflow-hidden">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={() => setIsPhoneContactsOpen(false)} 
+              className="absolute right-3 top-3 z-20 text-zinc-400 hover:text-white"
+            >
+              ✕
+            </Button>
+            <PhoneContactsView onClose={() => setIsPhoneContactsOpen(false)} />
           </div>
         </div>
       )}

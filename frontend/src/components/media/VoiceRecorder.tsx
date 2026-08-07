@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Play, Pause, Trash2, Send, StopCircle, Mic } from 'lucide-react';
+import { Play, Pause, Trash2, Send, StopCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface Props {
@@ -13,7 +13,7 @@ export function VoiceRecorder({ onSend, onCancel }: Props) {
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [isPlayingPreview, setIsPlayingPreview] = useState(false);
   const [previewProgress, setPreviewProgress] = useState(0);
-  const [audioLevels, setAudioLevels] = useState<number[]>(Array(24).fill(15));
+  const [audioLevels, setAudioLevels] = useState<number[]>(Array(28).fill(20));
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -24,7 +24,6 @@ export function VoiceRecorder({ onSend, onCancel }: Props) {
   const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const previewAudioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Start recording on mount
   useEffect(() => {
     startRecording();
     return () => {
@@ -48,7 +47,6 @@ export function VoiceRecorder({ onSend, onCancel }: Props) {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
 
-      // Web Audio API for real-time waveform visualization
       const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
       const audioCtx = new AudioCtx();
       audioContextRef.current = audioCtx;
@@ -65,13 +63,11 @@ export function VoiceRecorder({ onSend, onCancel }: Props) {
         if (!analyserRef.current) return;
         analyserRef.current.getByteFrequencyData(dataArray);
         
-        // Sample frequencies across 24 bars
         const bars: number[] = [];
-        const step = Math.max(1, Math.floor(dataArray.length / 24));
-        for (let i = 0; i < 24; i++) {
+        const step = Math.max(1, Math.floor(dataArray.length / 28));
+        for (let i = 0; i < 28; i++) {
           const val = dataArray[i * step] || 0;
-          // Scale between 15% and 100%
-          const pct = Math.min(100, Math.max(15, (val / 255) * 100 * 1.5));
+          const pct = Math.min(100, Math.max(18, (val / 255) * 100 * 1.6));
           bars.push(pct);
         }
         setAudioLevels(bars);
@@ -80,7 +76,15 @@ export function VoiceRecorder({ onSend, onCancel }: Props) {
 
       updateWaveform();
 
-      const recorder = new MediaRecorder(stream);
+      // Check supported MIME type
+      let mimeType = 'audio/webm';
+      if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
+        mimeType = 'audio/webm;codecs=opus';
+      } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
+        mimeType = 'audio/mp4';
+      }
+
+      const recorder = new MediaRecorder(stream, { mimeType });
       mediaRecorderRef.current = recorder;
       audioChunksRef.current = [];
 
@@ -161,7 +165,7 @@ export function VoiceRecorder({ onSend, onCancel }: Props) {
   };
 
   return (
-    <div className="flex items-center gap-3 w-full bg-zinc-900/90 border border-emerald-500/30 rounded-2xl px-4 py-2.5 shadow-lg animate-fade-in">
+    <div className="flex items-center gap-3 w-full bg-zinc-950 border border-emerald-500/40 rounded-2xl px-4 py-2.5 shadow-2xl animate-fade-in">
       {/* Delete / Cancel Button */}
       <Button
         type="button"
@@ -171,7 +175,7 @@ export function VoiceRecorder({ onSend, onCancel }: Props) {
           stopTracksAndContext();
           onCancel();
         }}
-        className="text-zinc-400 hover:text-red-400 hover:bg-red-500/10 shrink-0"
+        className="text-zinc-400 hover:text-red-400 hover:bg-red-500/10 shrink-0 h-9 w-9 rounded-full"
         title="Discard recording"
       >
         <Trash2 className="h-5 w-5" />
@@ -181,8 +185,8 @@ export function VoiceRecorder({ onSend, onCancel }: Props) {
       {isRecording ? (
         <div className="flex items-center gap-3 flex-1 min-w-0">
           <div className="flex items-center gap-2 shrink-0">
-            <div className="w-3 h-3 bg-red-500 rounded-full animate-ping" />
-            <span className="text-sm font-mono font-semibold text-zinc-100">{formatTime(duration)}</span>
+            <div className="w-2.5 h-2.5 bg-red-500 rounded-full animate-ping" />
+            <span className="text-sm font-mono font-bold text-emerald-400 tracking-wider">{formatTime(duration)}</span>
           </div>
 
           {/* Dynamic Audio Waveform Bars */}
@@ -190,7 +194,7 @@ export function VoiceRecorder({ onSend, onCancel }: Props) {
             {audioLevels.map((lvl, idx) => (
               <div
                 key={idx}
-                className="flex-1 bg-emerald-500 rounded-full transition-all duration-75"
+                className="flex-1 bg-gradient-to-t from-emerald-600 to-emerald-400 rounded-full transition-all duration-75 shadow-sm"
                 style={{ height: `${lvl}%` }}
               />
             ))}
@@ -201,7 +205,7 @@ export function VoiceRecorder({ onSend, onCancel }: Props) {
             variant="ghost"
             size="icon"
             onClick={handleStopRecording}
-            className="text-amber-400 hover:text-amber-300 hover:bg-amber-500/10 shrink-0"
+            className="text-amber-400 hover:text-amber-300 hover:bg-amber-500/10 shrink-0 h-9 w-9 rounded-full"
             title="Stop & preview"
           >
             <StopCircle className="h-6 w-6" />
@@ -215,7 +219,7 @@ export function VoiceRecorder({ onSend, onCancel }: Props) {
             variant="ghost"
             size="icon"
             onClick={togglePreviewPlay}
-            className="text-emerald-400 hover:bg-emerald-500/10 shrink-0"
+            className="text-emerald-400 hover:bg-emerald-500/10 shrink-0 h-9 w-9 rounded-full"
           >
             {isPlayingPreview ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5 ml-0.5" />}
           </Button>
@@ -223,7 +227,7 @@ export function VoiceRecorder({ onSend, onCancel }: Props) {
           <div className="flex-1 flex flex-col justify-center gap-1">
             <div className="h-2 bg-zinc-800 rounded-full overflow-hidden w-full relative">
               <div
-                className="h-full bg-emerald-500 transition-all duration-100"
+                className="h-full bg-emerald-400 transition-all duration-100"
                 style={{ width: `${previewProgress}%` }}
               />
             </div>
@@ -237,7 +241,7 @@ export function VoiceRecorder({ onSend, onCancel }: Props) {
         type="button"
         size="icon"
         onClick={handleSend}
-        className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-full shrink-0 shadow-md shadow-emerald-600/20"
+        className="bg-emerald-600 hover:bg-emerald-500 text-white rounded-full shrink-0 h-9 w-9 shadow-lg shadow-emerald-600/30 active:scale-95 transition-transform"
         title="Send voice message"
       >
         <Send className="h-4 w-4 ml-0.5" />

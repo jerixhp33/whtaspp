@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Paperclip, Smile, Mic, Send, X, Reply, Check } from 'lucide-react';
+import { Paperclip, Smile, Mic, Send, X, Reply, Check, Camera } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useChat } from '@/hooks/useChat';
 import { Message } from '@/types';
@@ -205,7 +205,7 @@ export function MessageComposer({
   };
 
   return (
-    <div className="relative flex flex-col w-full bg-zinc-900 rounded-2xl border border-zinc-800 p-2 sm:p-2.5 shadow-xl select-none">
+    <div className="relative flex flex-col w-full select-none gap-2">
       {/* Pre-Send Media Preview Modal */}
       {showPreSendModal && pendingPreviewFiles.length > 0 && (
         <PreSendMediaModal
@@ -230,7 +230,7 @@ export function MessageComposer({
       {showEmojiPicker && (
         <div
           ref={emojiPickerRef}
-          className="absolute bottom-full right-0 sm:right-4 mb-3 z-50 shadow-2xl rounded-2xl overflow-hidden"
+          className="absolute bottom-full left-0 sm:left-4 mb-3 z-50 shadow-2xl rounded-2xl overflow-hidden"
         >
           <ChatFlowEmojiPicker
             onSelectEmoji={handleSelectEmoji}
@@ -241,13 +241,15 @@ export function MessageComposer({
 
       {/* Voice Recorder Active Mode */}
       {isVoiceRecording ? (
-        <VoiceRecorder onSend={handleSendVoice} onCancel={() => setIsVoiceRecording(false)} />
+        <div className="bg-zinc-900 rounded-full border border-zinc-800 p-2 sm:p-2.5 shadow-xl">
+          <VoiceRecorder onSend={handleSendVoice} onCancel={() => setIsVoiceRecording(false)} />
+        </div>
       ) : (
         /* Normal Composer Layout */
         <div className="flex flex-col gap-2">
           {/* Editing Message Banner */}
           {editingMessage && (
-            <div className="flex items-center justify-between px-3 py-2 bg-sky-950/50 border-l-4 border-l-sky-500 rounded-lg text-xs">
+            <div className="flex items-center justify-between px-3 py-2 bg-sky-950/50 border-l-4 border-l-sky-500 rounded-xl text-xs mx-1">
               <div className="min-w-0">
                 <span className="font-semibold text-sky-400 block">Editing message</span>
                 <span className="text-zinc-400 block truncate">{editingMessage.content}</span>
@@ -269,7 +271,7 @@ export function MessageComposer({
 
           {/* Reply Quote Banner */}
           {replyMessage && !editingMessage && (
-            <div className="flex items-center justify-between px-3 py-2 bg-zinc-950/80 border-l-4 border-l-emerald-500 rounded-lg text-xs">
+            <div className="flex items-center justify-between px-3 py-2 bg-zinc-900 border-l-4 border-l-emerald-500 rounded-xl text-xs mx-1">
               <div className="flex items-center gap-2 min-w-0">
                 <Reply className="h-4 w-4 text-emerald-400 shrink-0" />
                 <div className="min-w-0">
@@ -292,103 +294,121 @@ export function MessageComposer({
             </div>
           )}
 
-          <div className="flex items-end gap-1.5 sm:gap-2">
-            {/* Paperclip File Attachment Button */}
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              onClick={() => setShowAttachmentMenu(!showAttachmentMenu)}
-              className={`shrink-0 mb-0.5 transition-colors ${
-                showAttachmentMenu
-                  ? 'text-emerald-400 bg-emerald-500/10'
-                  : 'text-zinc-400 hover:text-white hover:bg-zinc-800'
-              }`}
-              title="Attach media"
-              aria-label="Attach file"
-            >
-              <Paperclip className="h-5 w-5" />
-            </Button>
-
-            {/* Multiline Text Input Container */}
-            <div className="flex-1 min-w-0 relative">
-              {/* Visual Overlay for Custom Emoji Rendering */}
-              <div 
-                ref={overlayRef}
-                className="absolute inset-0 pointer-events-none py-2 text-sm leading-relaxed whitespace-pre-wrap break-words overflow-hidden"
-                style={{ paddingRight: '0.25rem', paddingLeft: '0.125rem' }}
-                aria-hidden="true"
+          <div className="flex items-end gap-2">
+            {/* Pill Container */}
+            <div className="flex-1 flex items-end gap-1.5 sm:gap-2 bg-[#1f2c34] rounded-3xl border-0 px-1 py-1 shadow-sm min-h-[44px]">
+              {/* Emoji Button (Left) */}
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                className={`shrink-0 mb-0.5 h-10 w-10 transition-colors ${
+                  showEmojiPicker
+                    ? 'text-emerald-400 bg-emerald-500/10'
+                    : 'text-zinc-400 hover:text-white hover:bg-zinc-800'
+                } rounded-full`}
+                title="Emoji"
+                aria-label="Emoji picker"
               >
-                {text && <EmojiText text={text + (text.endsWith('\n') ? ' ' : '')} animate={true} forceSize="md" />}
+                <Smile className="h-6 w-6" />
+              </Button>
+
+              {/* Multiline Text Input Container */}
+              <div className="flex-1 min-w-0 relative">
+                {/* Visual Overlay for Custom Emoji Rendering */}
+                <div 
+                  ref={overlayRef}
+                  className="absolute inset-0 pointer-events-none py-3 text-[17px] leading-snug whitespace-pre-wrap break-words overflow-hidden"
+                  style={{ paddingRight: '0.25rem', paddingLeft: '0.125rem' }}
+                  aria-hidden="true"
+                >
+                  {text && <EmojiText text={text + (text.endsWith('\n') ? ' ' : '')} animate={true} forceSize="md" />}
+                </div>
+                
+                {/* Actual Editable Textarea (Transparent) */}
+                <textarea
+                  ref={textareaRef}
+                  value={text}
+                  onChange={handleInputChange}
+                  onKeyDown={handleKeyDown}
+                  onScroll={handleScroll}
+                  placeholder={navigator.onLine ? 'Message' : 'Offline'}
+                  className="w-full max-h-[120px] min-h-[44px] bg-transparent border-0 focus:ring-0 resize-none py-3 text-transparent caret-white placeholder-zinc-400 text-[17px] leading-snug selection:bg-emerald-500/40 selection:text-transparent overflow-y-auto"
+                  rows={1}
+                  style={{ paddingRight: '0.25rem', paddingLeft: '0.125rem' }}
+                  spellCheck={false}
+                />
               </div>
-              
-              {/* Actual Editable Textarea (Transparent) */}
-              <textarea
-                ref={textareaRef}
-                value={text}
-                onChange={handleInputChange}
-                onKeyDown={handleKeyDown}
-                onScroll={handleScroll}
-                placeholder={navigator.onLine ? 'Type a message...' : 'Offline — messages will queue...'}
-                className="w-full max-h-32 min-h-[40px] bg-transparent border-0 focus:ring-0 resize-none py-2 text-transparent caret-white placeholder-zinc-500 text-sm leading-relaxed selection:bg-emerald-500/40 selection:text-transparent overflow-y-auto"
-                rows={1}
-                style={{ paddingRight: '0.25rem', paddingLeft: '0.125rem' }}
-                spellCheck={false}
-              />
+
+              {/* Attachment Button (Right) */}
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={() => setShowAttachmentMenu(!showAttachmentMenu)}
+                className={`shrink-0 mb-0.5 h-10 w-10 transition-colors ${
+                  showAttachmentMenu
+                    ? 'text-emerald-400 bg-emerald-500/10'
+                    : 'text-zinc-400 hover:text-white hover:bg-zinc-800'
+                } rounded-full`}
+                title="Attach media"
+                aria-label="Attach file"
+              >
+                <Paperclip className="h-5 w-5 -rotate-45" />
+              </Button>
+
+              {/* Camera Button (Only if empty text) */}
+              {!text.trim() && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="shrink-0 mb-0.5 h-10 w-10 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-full mr-1"
+                  title="Camera"
+                >
+                  <Camera className="h-5 w-5" />
+                </Button>
+              )}
             </div>
 
-            {/* Emoji Button */}
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-              className={`shrink-0 mb-0.5 transition-colors ${
-                showEmojiPicker
-                  ? 'text-emerald-400 bg-emerald-500/10'
-                  : 'text-zinc-400 hover:text-white hover:bg-zinc-800'
-              }`}
-              title="Emoji"
-              aria-label="Emoji picker"
-            >
-              <Smile className="h-5 w-5" />
-            </Button>
-
-            {/* Dynamic Send / Edit Save / Mic Button */}
-            {editingMessage ? (
-              <Button
-                type="button"
-                size="icon"
-                onClick={handleSendText}
-                className="bg-sky-600 hover:bg-sky-700 text-white shrink-0 mb-0.5 rounded-full shadow-md active:scale-95 transition-transform"
-                title="Save edit"
-                aria-label="Save edited message"
-              >
-                <Check className="h-4 w-4" />
-              </Button>
-            ) : text.trim() ? (
-              <Button
-                type="button"
-                size="icon"
-                onClick={handleSendText}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white shrink-0 mb-0.5 rounded-full shadow-md shadow-emerald-600/20 active:scale-95 transition-transform"
-                title="Send message"
-                aria-label="Send message"
-              >
-                <Send className="h-4 w-4 ml-0.5" />
-              </Button>
-            ) : (
-              <Button
-                type="button"
-                size="icon"
-                onClick={() => setIsVoiceRecording(true)}
-                className="bg-zinc-800 hover:bg-zinc-700 text-zinc-200 hover:text-white shrink-0 mb-0.5 rounded-full transition-transform active:scale-95"
-                title="Voice recording"
-                aria-label="Record voice note"
-              >
-                <Mic className="h-5 w-5" />
-              </Button>
-            )}
+            {/* External Circular Button (Mic or Send) */}
+            <div className="shrink-0 mb-0.5">
+              {editingMessage ? (
+                <Button
+                  type="button"
+                  size="icon"
+                  onClick={handleSendText}
+                  className="bg-white hover:bg-zinc-200 text-zinc-950 h-[48px] w-[48px] rounded-full shadow-lg active:scale-95 transition-transform"
+                  title="Save edit"
+                  aria-label="Save edited message"
+                >
+                  <Check className="h-6 w-6" />
+                </Button>
+              ) : text.trim() ? (
+                <Button
+                  type="button"
+                  size="icon"
+                  onClick={handleSendText}
+                  className="bg-white hover:bg-zinc-200 text-zinc-950 h-[48px] w-[48px] rounded-full shadow-lg active:scale-95 transition-transform"
+                  title="Send message"
+                  aria-label="Send message"
+                >
+                  <Send className="h-5 w-5 ml-1" />
+                </Button>
+              ) : (
+                <Button
+                  type="button"
+                  size="icon"
+                  onClick={() => setIsVoiceRecording(true)}
+                  className="bg-white hover:bg-zinc-200 text-zinc-950 h-[48px] w-[48px] rounded-full shadow-lg active:scale-95 transition-transform"
+                  title="Voice recording"
+                  aria-label="Record voice note"
+                >
+                  <Mic className="h-6 w-6" />
+                </Button>
+              )}
+            </div>
           </div>
         </div>
       )}

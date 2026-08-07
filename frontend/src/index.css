@@ -120,11 +120,38 @@
 @layer base {
   * {
     @apply border-border outline-ring/50;
-    }
+  }
   body {
     @apply bg-background text-foreground;
-    }
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+  }
   html {
     @apply font-sans;
-    }
+  }
+
+  /* Explicitly allow selection only in text inputs and message content */
+  .selectable-text,
+  input,
+  textarea,
+  [contenteditable="true"],
+  pre,
+  code {
+    user-select: text !important;
+    -webkit-user-select: text !important;
+    -webkit-touch-callout: default !important;
+  }
+
+  /* Interactive elements must not trigger text selection */
+  button,
+  a,
+  nav,
+  header,
+  aside,
+  [role="button"],
+  .no-select {
+    user-select: none !important;
+    -webkit-user-select: none !important;
+  }
 }

@@ -1,6 +1,8 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Message } from '../types';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { Message, Profile, MessageAttachment } from '../types';
 import { supabase } from '../lib/supabase';
+import { messageCacheService } from '../services/offline/message-cache.service';
+import { realUploadService, UploadCompleteResult } from '../services/realUploadService';
 
 const MESSAGE_SELECT_QUERY = `
   *,
@@ -14,55 +16,166 @@ const MESSAGE_SELECT_QUERY = `
 export const useMessages = (conversationId?: string) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
+  const [isOnline, setIsOnline] = useState<boolean>(
+    typeof navigator !== 'undefined' ? navigator.onLine : true
+  );
+  const [isUnavailableOffline, setIsUnavailableOffline] = useState(false);
 
+  const channelRef = useRef<any>(null);
+
+  // Helper to fetch full single message with relations and reconcile
   const fetchFullMessage = useCallback(async (messageId: string) => {
-    const { data, error } = await supabase
-      .from('messages')
-      .select(MESSAGE_SELECT_QUERY)
-      .eq('id', messageId)
-      .single();
+    try {
+      const { data, error } = await supabase
+        .from('messages')
+        .select(MESSAGE_SELECT_QUERY)
+        .eq('id', messageId)
+        .single();
 
-    if (!error && data) {
-      setMessages((prev) => {
-        const index = prev.findIndex((m) => m.id === data.id);
-        if (index >= 0) {
-          const updated = [...prev];
-          updated[index] = data as any;
-          return updated;
-        }
-        return [...prev, data as any];
-      });
+      if (!error && data) {
+        const fullMsg = data as unknown as Message;
+        setMessages((prev) => {
+          const clientMsgId = fullMsg.metadata?.client_message_id;
+          const index = prev.findIndex(
+            (m) =>
+              m.id === fullMsg.id ||
+              (clientMsgId && (m as any).client_message_id === clientMsgId) ||
+              (clientMsgId && m.metadata?.client_message_id === clientMsgId) ||
+              (m as any).temp_id === clientMsgId
+          );
+
+          let nextMessages: Message[];
+          if (index >= 0) {
+            nextMessages = [...prev];
+            nextMessages[index] = fullMsg;
+          } else {
+            nextMessages = [...prev, fullMsg];
+          }
+          // Cache updated messages
+          messageCacheService.cacheMessage(fullMsg);
+          return nextMessages;
+        });
+      }
+    } catch (err) {
+      console.warn('Failed to fetch full message:', err);
     }
   }, []);
 
+  // Flush outgoing offline queue when online
+  const flushOutgoingQueue = useCallback(async () => {
+    if (!navigator.onLine) return;
+    try {
+      const queue = await messageCacheService.getOutgoingQueue();
+      for (const item of queue) {
+        try {
+          const { data, error } = await supabase
+            .from('messages')
+            .insert(item.payload)
+            .select(MESSAGE_SELECT_QUERY)
+            .single();
+
+          if (!error && data) {
+            await messageCacheService.removeOutgoing(item.tempId);
+            // Replace temporary message in state
+            setMessages((prev) =>
+              prev.map((m) =>
+                (m as any).temp_id === item.tempId || (m as any).client_message_id === item.tempId
+                  ? (data as unknown as Message)
+                  : m
+              )
+            );
+            await messageCacheService.cacheMessage(data as unknown as Message);
+          }
+        } catch (err) {
+          console.warn('Failed to send queued offline message:', err);
+        }
+      }
+    } catch (err) {
+      console.warn('Flush outgoing queue error:', err);
+    }
+  }, []);
+
+  // Monitor network status
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOnline(true);
+      flushOutgoingQueue();
+    };
+
+    const handleOffline = () => {
+      setIsOnline(false);
+    };
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, [flushOutgoingQueue]);
+
+  // Load and subscribe to messages
   useEffect(() => {
     if (!conversationId) {
       setMessages([]);
+      setIsUnavailableOffline(false);
       return;
     }
 
-    const fetchMessages = async () => {
-      setLoading(true);
-      try {
-        const { data, error } = await supabase
-          .from('messages')
-          .select(MESSAGE_SELECT_QUERY)
-          .eq('conversation_id', conversationId)
-          .order('created_at', { ascending: true });
+    let isMounted = true;
 
-        if (!error && data) {
-          setMessages(data as any);
+    const loadMessages = async () => {
+      setLoading(true);
+      setIsUnavailableOffline(false);
+
+      // 1. Load from IndexedDB cache immediately for instant display
+      try {
+        const cached = await messageCacheService.getCachedMessages(conversationId);
+        if (isMounted && cached && cached.length > 0) {
+          setMessages(cached);
+          setLoading(false);
+        } else if (!navigator.onLine) {
+          setIsUnavailableOffline(true);
+          setLoading(false);
+          return;
         }
       } catch (err) {
-        console.error('Error fetching messages:', err);
-      } finally {
-        setLoading(false);
+        console.warn('Error reading cached messages:', err);
+      }
+
+      // 2. If online, fetch fresh messages from Supabase
+      if (navigator.onLine) {
+        try {
+          const { data, error } = await supabase
+            .from('messages')
+            .select(MESSAGE_SELECT_QUERY)
+            .eq('conversation_id', conversationId)
+            .order('created_at', { ascending: true });
+
+          if (isMounted) {
+            if (!error && data) {
+              const freshMessages = data as unknown as Message[];
+              setMessages(freshMessages);
+              // Save to IndexedDB
+              await messageCacheService.cacheMessages(freshMessages);
+            }
+            setLoading(false);
+          }
+        } catch (err) {
+          console.error('Error fetching messages from server:', err);
+          if (isMounted) setLoading(false);
+        }
       }
     };
 
-    fetchMessages();
+    loadMessages();
 
-    // Subscribe to Supabase Realtime for messages, attachments, reactions, and reads
+    // 3. Setup Supabase Realtime Subscription
+    if (channelRef.current) {
+      supabase.removeChannel(channelRef.current);
+    }
+
     const channel = supabase
       .channel(`conversation-live-${conversationId}`)
       .on(
@@ -78,6 +191,7 @@ export const useMessages = (conversationId?: string) => {
             const oldId = (payload.old as any)?.id;
             if (oldId) {
               setMessages((prev) => prev.filter((m) => m.id !== oldId));
+              await messageCacheService.deleteCachedMessage(oldId);
             }
           } else if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
             const newMsg = payload.new as any;
@@ -121,7 +235,7 @@ export const useMessages = (conversationId?: string) => {
           table: 'message_reads',
         },
         async (payload) => {
-          const read = (payload.new as any);
+          const read = payload.new as any;
           if (read?.message_id) {
             await fetchFullMessage(read.message_id);
           }
@@ -129,10 +243,394 @@ export const useMessages = (conversationId?: string) => {
       )
       .subscribe();
 
+    channelRef.current = channel;
+
     return () => {
-      supabase.removeChannel(channel);
+      isMounted = false;
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+      }
     };
   }, [conversationId, fetchFullMessage]);
 
-  return { messages, setMessages, loading, refetchMessage: fetchFullMessage };
+  // Send text or simple pre-uploaded message
+  const sendMessage = async (
+    content: string,
+    messageType: 'text' | 'image' | 'video' | 'audio' | 'voice' | 'document' = 'text',
+    fileAttachment?: { file_name: string; file_url: string; file_size?: number; file_type?: string },
+    replyToMessage?: Message | null,
+    currentUser?: any,
+    currentProfile?: Profile | null
+  ) => {
+    if (!conversationId || !currentUser) return;
+
+    const clientMsgId = `client_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+
+    const optimisticMsg: any = {
+      id: clientMsgId,
+      temp_id: clientMsgId,
+      client_message_id: clientMsgId,
+      conversation_id: conversationId,
+      sender_id: currentUser.id,
+      content,
+      message_type: messageType,
+      created_at: new Date().toISOString(),
+      sender: currentProfile || {
+        id: currentUser.id,
+        display_name: currentUser.user_metadata?.display_name || currentUser.email?.split('@')[0],
+        username: currentUser.email?.split('@')[0],
+      },
+      is_pending: !navigator.onLine,
+      metadata: {
+        client_message_id: clientMsgId,
+        audio_url: messageType === 'voice' || messageType === 'audio' ? fileAttachment?.file_url : undefined,
+      },
+      reply_to: replyToMessage || undefined,
+      reply_to_id: replyToMessage?.id || undefined,
+      attachments: fileAttachment ? [fileAttachment] : [],
+      reactions: [],
+      reads: [],
+    };
+
+    // 1. Instantly render optimistic message in UI
+    setMessages((prev) => [...prev, optimisticMsg as Message]);
+
+    // 2. If offline, store in local outgoing queue
+    if (!navigator.onLine) {
+      await messageCacheService.queueOutgoing(conversationId, optimisticMsg, clientMsgId);
+      await messageCacheService.cacheMessage(optimisticMsg as Message);
+      return;
+    }
+
+    // 3. Send to Supabase in background
+    try {
+      const payload: any = {
+        conversation_id: conversationId,
+        sender_id: currentUser.id,
+        content,
+        message_type: messageType,
+        metadata: { client_message_id: clientMsgId, ...(optimisticMsg.metadata || {}) },
+      };
+
+      if (replyToMessage?.id) {
+        payload.reply_to_id = replyToMessage.id;
+      }
+
+      const { data: serverMsg, error } = await supabase
+        .from('messages')
+        .insert(payload)
+        .select(MESSAGE_SELECT_QUERY)
+        .single();
+
+      if (error || !serverMsg) {
+        throw error;
+      }
+
+      // If file attachment exists, insert row
+      if (fileAttachment) {
+        await supabase.from('message_attachments').insert({
+          message_id: serverMsg.id,
+          file_name: fileAttachment.file_name,
+          file_type: fileAttachment.file_type || 'application/octet-stream',
+          file_size: fileAttachment.file_size,
+          file_url: fileAttachment.file_url,
+        });
+      }
+
+      // Reconcile optimistic message with real message
+      const confirmedMsg = serverMsg as unknown as Message;
+      setMessages((prev) =>
+        prev.map((m) =>
+          (m as any).temp_id === clientMsgId || (m as any).client_message_id === clientMsgId
+            ? confirmedMsg
+            : m
+        )
+      );
+      await messageCacheService.cacheMessage(confirmedMsg);
+
+      // Update conversation last_message_at
+      await supabase
+        .from('conversations')
+        .update({ last_message_at: new Date().toISOString() })
+        .eq('id', conversationId);
+    } catch (err) {
+      console.error('Failed to send message:', err);
+      // Mark optimistic message as failed
+      setMessages((prev) =>
+        prev.map((m) =>
+          (m as any).client_message_id === clientMsgId ? { ...m, is_failed: true } : m
+        )
+      );
+    }
+  };
+
+  /**
+   * Send media with real 0-100% byte upload progress, local previews, and controlled queue
+   */
+  const sendMediaMessage = async (
+    file: File | Blob,
+    messageType: 'image' | 'video' | 'audio' | 'voice' | 'document',
+    caption: string = '',
+    replyToMessage?: Message | null,
+    currentUser?: any,
+    currentProfile?: Profile | null,
+    customFileName?: string
+  ) => {
+    if (!conversationId || !currentUser) return;
+
+    const fileName = customFileName || (file instanceof File ? file.name : `file_${Date.now()}`);
+    const clientMsgId = `media_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+    const localPreviewUrl = URL.createObjectURL(file);
+    const bucket = realUploadService.resolveBucket(file.type || 'application/octet-stream');
+
+    const tempAttachment: MessageAttachment = {
+      id: `att_${clientMsgId}`,
+      message_id: clientMsgId,
+      file_name: fileName,
+      file_type: file.type || 'application/octet-stream',
+      file_size: file.size,
+      file_url: localPreviewUrl,
+      created_at: new Date().toISOString(),
+    };
+
+    const optimisticMsg: Message = {
+      id: clientMsgId,
+      conversation_id: conversationId,
+      sender_id: currentUser.id,
+      content: caption,
+      message_type: messageType,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      is_edited: false,
+      is_deleted: false,
+      is_pending: true,
+      uploadProgress: 0,
+      uploadStatus: 'queued',
+      localPreviewUrl,
+      localFile: file,
+      sender: (currentProfile as Profile) || {
+        id: currentUser.id,
+        display_name: currentUser.user_metadata?.display_name || currentUser.email?.split('@')[0] || 'User',
+        username: currentUser.email?.split('@')[0] || 'user',
+        email: currentUser.email || '',
+        bio: '',
+        status: 'online',
+        is_online: true,
+        last_seen: new Date().toISOString(),
+        is_admin: false,
+        is_disabled: false,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      },
+      metadata: {
+        client_message_id: clientMsgId,
+        bucket,
+      },
+      reply_to: replyToMessage || undefined,
+      reply_to_id: replyToMessage?.id || undefined,
+      attachments: [tempAttachment],
+      reactions: [],
+      reads: [],
+    };
+
+    // 1. Immediately display optimistic message in chat
+    setMessages((prev) => [...prev, optimisticMsg]);
+
+    // 2. Queue in real upload service with byte-accurate progress
+    realUploadService.upload({
+      id: clientMsgId,
+      file,
+      fileName,
+      fileType: file.type || 'application/octet-stream',
+      fileSize: file.size,
+      bucket,
+      onProgress: (pct) => {
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === clientMsgId
+              ? {
+                  ...m,
+                  uploadProgress: pct,
+                  uploadStatus: pct >= 100 ? 'completed' : 'uploading',
+                }
+              : m
+          )
+        );
+      },
+      onComplete: async (result: UploadCompleteResult) => {
+        try {
+          // Construct server message payload
+          const payload: any = {
+            conversation_id: conversationId,
+            sender_id: currentUser.id,
+            content: caption,
+            message_type: messageType,
+            metadata: {
+              client_message_id: clientMsgId,
+              storage_path: result.storage_path,
+              bucket: result.bucket,
+              duration: result.duration,
+            },
+          };
+
+          if (replyToMessage?.id) {
+            payload.reply_to_id = replyToMessage.id;
+          }
+
+          const { data: serverMsg, error } = await supabase
+            .from('messages')
+            .insert(payload)
+            .select(MESSAGE_SELECT_QUERY)
+            .single();
+
+          if (error || !serverMsg) throw error;
+
+          // Insert permanent attachment record
+          const { data: attData } = await supabase
+            .from('message_attachments')
+            .insert({
+              message_id: serverMsg.id,
+              file_name: result.file_name,
+              file_type: result.file_type,
+              file_size: result.file_size,
+              file_url: result.storage_path, // Store safe storage path, not raw URL
+              thumbnail_url: result.thumbnail_path,
+              duration: result.duration,
+            })
+            .select('*')
+            .single();
+
+          const finalMsg: Message = {
+            ...(serverMsg as unknown as Message),
+            attachments: attData ? [attData] : serverMsg.attachments,
+            localPreviewUrl,
+            uploadProgress: 100,
+            uploadStatus: 'completed' as const,
+          };
+
+          setMessages((prev) =>
+            prev.map((m) => (m.id === clientMsgId ? finalMsg : m))
+          );
+          await messageCacheService.cacheMessage(finalMsg);
+
+          await supabase
+            .from('conversations')
+            .update({ last_message_at: new Date().toISOString() })
+            .eq('id', conversationId);
+        } catch (err: any) {
+          console.error('Failed to commit media message:', err);
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === clientMsgId ? { ...m, is_failed: true, uploadStatus: 'failed' as const } : m
+            )
+          );
+        }
+      },
+      onError: (err) => {
+        console.error('Upload failed:', err);
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === clientMsgId ? { ...m, is_failed: true, uploadStatus: 'failed' } : m
+          )
+        );
+      },
+    });
+  };
+
+  /**
+   * Cancel an ongoing media upload
+   */
+  const cancelMediaUpload = (clientMsgId: string) => {
+    realUploadService.cancelUpload(clientMsgId);
+    setMessages((prev) => {
+      const target = prev.find((m) => m.id === clientMsgId);
+      if (target?.localPreviewUrl) {
+        URL.revokeObjectURL(target.localPreviewUrl);
+      }
+      return prev.filter((m) => m.id !== clientMsgId);
+    });
+  };
+
+  /**
+   * Retry a failed upload
+   */
+  const retryMediaUpload = (msg: Message, currentUser: any, currentProfile: any) => {
+    if (!msg.localFile) return;
+    // Remove failed item and re-send
+    setMessages((prev) => prev.filter((m) => m.id !== msg.id));
+    sendMediaMessage(
+      msg.localFile,
+      msg.message_type as any,
+      msg.content || '',
+      msg.reply_to,
+      currentUser,
+      currentProfile,
+      msg.attachments?.[0]?.file_name
+    );
+  };
+
+  // Edit message
+  const editMessage = async (messageId: string, newContent: string) => {
+    try {
+      setMessages((prev) =>
+        prev.map((m) => (m.id === messageId ? { ...m, content: newContent, is_edited: true } : m))
+      );
+      await supabase
+        .from('messages')
+        .update({ content: newContent, is_edited: true })
+        .eq('id', messageId);
+    } catch (err) {
+      console.error('Failed to edit message:', err);
+    }
+  };
+
+  // Delete message (soft delete)
+  const deleteMessage = async (messageId: string) => {
+    try {
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === messageId
+            ? { ...m, is_deleted: true, content: 'This message was deleted' }
+            : m
+        )
+      );
+      await supabase
+        .from('messages')
+        .update({ is_deleted: true, content: 'This message was deleted' })
+        .eq('id', messageId);
+    } catch (err) {
+      console.error('Failed to delete message:', err);
+    }
+  };
+
+  // Toggle reaction
+  const toggleReaction = async (messageId: string, emoji: string, userId: string) => {
+    try {
+      await supabase.from('message_reactions').upsert({
+        message_id: messageId,
+        user_id: userId,
+        emoji,
+      });
+      await fetchFullMessage(messageId);
+    } catch (err) {
+      console.error('Failed to add reaction:', err);
+    }
+  };
+
+  return {
+    messages,
+    setMessages,
+    loading,
+    isOnline,
+    isUnavailableOffline,
+    sendMessage,
+    sendMediaMessage,
+    cancelMediaUpload,
+    retryMediaUpload,
+    editMessage,
+    deleteMessage,
+    toggleReaction,
+    refetchMessage: fetchFullMessage,
+    flushOutgoingQueue,
+  };
 };

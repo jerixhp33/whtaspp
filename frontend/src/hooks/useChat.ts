@@ -2,6 +2,7 @@ import React, { useState, useEffect, createContext, useContext, useCallback } fr
 import { Conversation } from '../types';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './useAuth';
+import { conversationCacheService } from '../services/offline/conversation-cache.service';
 
 interface ChatContextType {
   conversations: Conversation[];
@@ -38,6 +39,16 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   const [typingUsernames, setTypingUsernames] = useState<Record<string, string>>({});
   const [typingChannel, setTypingChannel] = useState<any>(null);
 
+  // 1. Initial hydration from IndexedDB cache
+  useEffect(() => {
+    conversationCacheService.getCachedConversations().then((cached) => {
+      if (cached && cached.length > 0) {
+        setConversations(cached);
+        setLoading(false);
+      }
+    });
+  }, []);
+
   const fetchConversations = useCallback(async () => {
     if (!user?.id) {
       setConversations([]);
@@ -52,7 +63,9 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         .eq('user_id', user.id);
 
       if (memberErr || !memberRows || memberRows.length === 0) {
-        setConversations([]);
+        if (navigator.onLine) {
+          setConversations([]);
+        }
         setLoading(false);
         return;
       }
@@ -81,12 +94,13 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 
             return {
               ...conv,
-              last_message: lastMsgData || null
+              last_message: lastMsgData || null,
             };
           })
         );
 
         setConversations(fullConvs as any);
+        await conversationCacheService.cacheConversations(fullConvs as any);
       }
     } catch (err) {
       console.error('Failed to fetch conversations:', err);
@@ -110,7 +124,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         {
           event: '*',
           schema: 'public',
-          table: 'conversations'
+          table: 'conversations',
         },
         () => {
           fetchConversations();
@@ -122,7 +136,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
           event: '*',
           schema: 'public',
           table: 'conversation_members',
-          filter: `user_id=eq.${user.id}`
+          filter: `user_id=eq.${user.id}`,
         },
         () => {
           fetchConversations();
@@ -133,7 +147,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         {
           event: 'INSERT',
           schema: 'public',
-          table: 'messages'
+          table: 'messages',
         },
         async (payload) => {
           const newMsg = payload.new as any;
@@ -149,11 +163,13 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
               last_message: newMsg,
               last_message_id: newMsg.id,
               last_message_at: newMsg.created_at,
-              updated_at: newMsg.created_at
+              updated_at: newMsg.created_at,
             };
 
             const filtered = prev.filter((c) => c.id !== newMsg.conversation_id);
-            return [updatedConv, ...filtered];
+            const nextList = [updatedConv, ...filtered];
+            conversationCacheService.cacheConversations(nextList);
+            return nextList;
           });
         }
       )
@@ -169,7 +185,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     if (!user?.id) return;
 
     const presenceChan = supabase.channel('global-presence', {
-      config: { presence: { key: user.id } }
+      config: { presence: { key: user.id } },
     });
 
     presenceChan
@@ -214,19 +230,22 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     };
   }, [user?.id]);
 
-  const sendTypingSignal = useCallback((conversationId: string, isTyping: boolean) => {
-    if (!typingChannel || !user) return;
-    typingChannel.send({
-      type: 'broadcast',
-      event: 'typing',
-      payload: {
-        user_id: user.id,
-        conversation_id: conversationId,
-        is_typing: isTyping,
-        username: profile?.display_name || profile?.username || 'User'
-      }
-    });
-  }, [typingChannel, user, profile]);
+  const sendTypingSignal = useCallback(
+    (conversationId: string, isTyping: boolean) => {
+      if (!typingChannel || !user) return;
+      typingChannel.send({
+        type: 'broadcast',
+        event: 'typing',
+        payload: {
+          user_id: user.id,
+          conversation_id: conversationId,
+          is_typing: isTyping,
+          username: profile?.display_name || profile?.username || 'User',
+        },
+      });
+    },
+    [typingChannel, user, profile]
+  );
 
   const value = {
     conversations,

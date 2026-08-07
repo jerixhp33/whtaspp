@@ -1,15 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
-import { User, Lock, Bell, Palette, Shield, ArrowLeft, ShieldCheck } from 'lucide-react';
+import { User, Lock, Bell, Palette, Shield, ArrowLeft, ShieldCheck, HardDrive } from 'lucide-react';
 import { PrivacySettings } from './PrivacySettings';
 import { NotificationSettings } from './NotificationSettings';
 import { AppearanceSettings } from './AppearanceSettings';
 import { AccountSettings } from './AccountSettings';
 import { PermissionsSettings } from './PermissionsSettings';
+import { StorageSettings } from './StorageSettings';
 import { ProfileEdit } from '../profile/ProfileEdit';
 import { useNavigate, useLocation } from 'react-router-dom';
 
-type SettingsSection = 'profile' | 'privacy' | 'notifications' | 'appearance' | 'account' | 'permissions';
+type SettingsSection = 'profile' | 'permissions' | 'storage' | 'privacy' | 'notifications' | 'appearance' | 'account';
 
 interface Props {
   initialSection?: SettingsSection;
@@ -22,6 +23,7 @@ export const SettingsLayout: React.FC<Props> = ({ initialSection }) => {
   const getSectionFromPath = (): SettingsSection => {
     if (initialSection) return initialSection;
     if (location.pathname.includes('/permissions')) return 'permissions';
+    if (location.pathname.includes('/storage')) return 'storage';
     if (location.pathname.includes('/privacy')) return 'privacy';
     if (location.pathname.includes('/notifications')) return 'notifications';
     if (location.pathname.includes('/appearance')) return 'appearance';
@@ -38,6 +40,7 @@ export const SettingsLayout: React.FC<Props> = ({ initialSection }) => {
   const navItems = [
     { id: 'profile', label: 'Profile', icon: User },
     { id: 'permissions', label: 'Permissions', icon: ShieldCheck },
+    { id: 'storage', label: 'Storage', icon: HardDrive },
     { id: 'privacy', label: 'Privacy', icon: Shield },
     { id: 'notifications', label: 'Notifications', icon: Bell },
     { id: 'appearance', label: 'Appearance', icon: Palette },
@@ -50,6 +53,8 @@ export const SettingsLayout: React.FC<Props> = ({ initialSection }) => {
         return <ProfileEdit />;
       case 'permissions':
         return <PermissionsSettings />;
+      case 'storage':
+        return <StorageSettings />;
       case 'privacy':
         return <PrivacySettings />;
       case 'notifications':

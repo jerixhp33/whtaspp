@@ -91,6 +91,12 @@ export interface Message {
   metadata: Record<string, any>;
   sender?: Profile;
   status?: MessageStatus;
+  is_pending?: boolean;
+  is_failed?: boolean;
+  uploadProgress?: number;
+  uploadStatus?: 'queued' | 'preparing' | 'uploading' | 'completed' | 'failed' | 'cancelled';
+  localPreviewUrl?: string;
+  localFile?: File | Blob;
   created_at: string;
   updated_at: string;
 }

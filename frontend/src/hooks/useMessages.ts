@@ -620,15 +620,73 @@ export const useMessages = (conversationId?: string) => {
 
   // Toggle reaction
   const toggleReaction = async (messageId: string, emoji: string, userId: string) => {
+    // 1. Optimistic UI update
+    setMessages((prev) =>
+      prev.map((m) => {
+        if (m.id === messageId) {
+          const reactions = m.reactions || [];
+          const hasSameEmoji = reactions.some((r) => r.user_id === userId && r.emoji === emoji);
+          const filteredReactions = reactions.filter((r) => r.user_id !== userId);
+          return {
+            ...m,
+            reactions: hasSameEmoji
+              ? filteredReactions
+              : [
+                  ...filteredReactions,
+                  {
+                    id: `temp_${Date.now()}`,
+                    message_id: messageId,
+                    user_id: userId,
+                    emoji,
+                    created_at: new Date().toISOString(),
+                  },
+                ],
+          };
+        }
+        return m;
+      })
+    );
+
     try {
-      await supabase.from('message_reactions').upsert({
-        message_id: messageId,
-        user_id: userId,
-        emoji,
-      });
+      // 2. Fetch user's existing reaction(s) for this message from DB
+      const { data: existingReactions } = await supabase
+        .from('message_reactions')
+        .select('*')
+        .eq('message_id', messageId)
+        .eq('user_id', userId);
+
+      if (existingReactions && existingReactions.length > 0) {
+        const hasSameEmoji = existingReactions.some((r) => r.emoji === emoji);
+        
+        // Always clear existing reactions first (to enforce 1 reaction per user)
+        await supabase
+          .from('message_reactions')
+          .delete()
+          .eq('message_id', messageId)
+          .eq('user_id', userId);
+
+        // If they didn't click the same emoji, insert the new one
+        if (!hasSameEmoji) {
+          await supabase.from('message_reactions').insert({
+            message_id: messageId,
+            user_id: userId,
+            emoji,
+          });
+        }
+      } else {
+        // No existing reaction, just insert
+        await supabase.from('message_reactions').insert({
+          message_id: messageId,
+          user_id: userId,
+          emoji,
+        });
+      }
+
       await fetchFullMessage(messageId);
     } catch (err) {
-      console.error('Failed to add reaction:', err);
+      console.error('Failed to toggle reaction:', err);
+      // If it fails, revert the optimistic update by fetching the real state
+      await fetchFullMessage(messageId);
     }
   };
 

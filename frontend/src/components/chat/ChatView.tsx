@@ -75,17 +75,19 @@ export function ChatView({ onToggleDetails }: { onToggleDetails?: () => void }) 
         />
       </div>
 
-      {/* Fixed Bottom Composer */}
-      <div className="flex-shrink-0 p-2.5 sm:p-4 bg-transparent z-20 pb-[max(0.625rem,env(safe-area-inset-bottom))]">
-        <MessageComposer
-          replyMessage={replyMessage}
-          editingMessage={editingMessage}
-          onClearReply={() => setReplyMessage(null)}
-          onClearEdit={() => setEditingMessage(null)}
-          onSendMessage={handleSendMessage}
-          onSendMediaMessage={handleSendMediaMessage}
-          onSaveEdit={(id, content) => editMessage(id, content)}
-        />
+      {/* Floating Bottom Composer */}
+      <div className="absolute bottom-0 left-0 right-0 p-2.5 sm:p-4 bg-transparent z-20 pointer-events-none pb-[max(0.625rem,env(safe-area-inset-bottom))]">
+        <div className="pointer-events-auto">
+          <MessageComposer
+            replyMessage={replyMessage}
+            editingMessage={editingMessage}
+            onClearReply={() => setReplyMessage(null)}
+            onClearEdit={() => setEditingMessage(null)}
+            onSendMessage={handleSendMessage}
+            onSendMediaMessage={handleSendMediaMessage}
+            onSaveEdit={(id, content) => editMessage(id, content)}
+          />
+        </div>
       </div>
     </div>
   );

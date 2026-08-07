@@ -295,12 +295,14 @@ export function MessageList({ onReply, onEdit, messagesHook }: Props) {
             );
           })
         )}
+        {/* Spacer to allow messages to scroll underneath the floating composer */}
+        <div className="shrink-0 h-[76px] sm:h-[88px] w-full pointer-events-none" />
         <div ref={bottomRef} />
       </div>
 
       {/* Floating Scroll to Bottom / New messages button */}
       {showScrollBottomBtn && (
-        <div className="absolute bottom-4 right-4 z-20 select-none">
+        <div className="absolute bottom-[80px] sm:bottom-[92px] right-4 z-20 select-none">
           <Button
             type="button"
             onClick={() => scrollToBottom('smooth')}

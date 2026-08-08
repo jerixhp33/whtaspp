@@ -13,7 +13,7 @@ interface Props {
 
 export function ConversationItem({ conversation, isActive, onClick }: Props) {
   const { user } = useAuth();
-  const { typingUsernames } = useChat();
+  const { typingUsernames, onlineUserIds } = useChat();
   const isTyping = typingUsernames[conversation.id];
   
   const renderLastMessage = () => {
@@ -45,7 +45,7 @@ export function ConversationItem({ conversation, isActive, onClick }: Props) {
     : (otherMember?.display_name || otherMember?.username || 'Chat User');
     
   const avatarUrl = isGroup ? conversation.group?.avatar_url : otherMember?.avatar_url;
-  const isOnline = isGroup ? false : otherMember?.is_online;
+  const isOnline = isGroup ? false : (otherMember?.id ? onlineUserIds.has(otherMember.id) : false);
 
   return (
     <div 

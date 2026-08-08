@@ -126,8 +126,15 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
           schema: 'public',
           table: 'conversations',
         },
-        () => {
-          fetchConversations();
+        (payload) => {
+          setConversations((prev) => {
+            const exists = prev.some((c) => c.id === payload.new?.id || c.id === payload.old?.id);
+            if (exists) {
+              // Only refetch if the conversation is relevant to the current user
+              setTimeout(() => fetchConversations(), 100);
+            }
+            return prev;
+          });
         }
       )
       .on(

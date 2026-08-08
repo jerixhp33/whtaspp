@@ -263,11 +263,16 @@ export const useMessages = (conversationId?: string) => {
 
     channelRef.current = channel;
 
+    // Listen for custom clear chat event
+    const handleClearChat = () => setMessages([]);
+    window.addEventListener(`chatflow_clear_chat_${conversationId}`, handleClearChat);
+
     return () => {
       isMounted = false;
       if (channelRef.current) {
         supabase.removeChannel(channelRef.current);
       }
+      window.removeEventListener(`chatflow_clear_chat_${conversationId}`, handleClearChat);
     };
   }, [conversationId, fetchFullMessage]);
 

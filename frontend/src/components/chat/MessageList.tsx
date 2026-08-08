@@ -145,7 +145,7 @@ export function MessageList({ onReply, onEdit, messagesHook }: Props) {
     return () => window.visualViewport?.removeEventListener('resize', handleResize);
   }, []);
 
-  // Reset scroll on active conversation change
+  // Reset scroll and unread state on active conversation change
   useEffect(() => {
     prevMessagesLengthRef.current = 0;
     setShowScrollBottomBtn(false);
@@ -153,7 +153,10 @@ export function MessageList({ onReply, onEdit, messagesHook }: Props) {
     setIsSelectMode(false);
     setSelectedMessageIds(new Set());
     // Give it a tiny delay to ensure the new chat is rendered before scrolling
-    setTimeout(() => scrollToBottom('auto'), 0);
+    setTimeout(() => {
+      setUnreadCount(0); // Double-ensure badge clears
+      scrollToBottom('auto');
+    }, 0);
   }, [activeConversation?.id]);
 
   // Multi-select handlers

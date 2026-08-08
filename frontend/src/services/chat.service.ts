@@ -9,5 +9,5 @@ export const chatService = {
   updateGroup: async (id: string, group: Partial<Group>) => supabase.from('groups').update(group).eq('id', id),
   addGroupMember: async (conversationId: string, userId: string, role: string) => supabase.from('conversation_members').insert({ conversation_id: conversationId, user_id: userId, role }),
   removeGroupMember: async (conversationId: string, userId: string) => supabase.from('conversation_members').delete().match({ conversation_id: conversationId, user_id: userId }),
-  leaveGroup: async (conversationId: string) => supabase.from('conversation_members').delete().match({ conversation_id: conversationId }) // current user leaves
+  leaveGroup: async (conversationId: string, userId: string) => supabase.from('conversation_members').delete().match({ conversation_id: conversationId, user_id: userId })
 };

@@ -16,7 +16,23 @@ export function ChatHeader({ onToggleDetails, onStartCall, onSearchChat }: ChatH
   const { activeConversation, setActiveConversation, onlineUserIds, typingUsernames, setConversations } = useChat();
   const { user } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isMuted, setIsMuted] = useState(false);
+  
+  // Bug 4: Persist mute state to localStorage per conversation
+  const [isMuted, setIsMuted] = useState(() => {
+    if (!activeConversation) return false;
+    return localStorage.getItem(`chatflow_muted_${activeConversation.id}`) === 'true';
+  });
+
+  const toggleMute = () => {
+    setIsMuted((prev) => {
+      const next = !prev;
+      if (activeConversation) {
+        localStorage.setItem(`chatflow_muted_${activeConversation.id}`, next.toString());
+      }
+      return next;
+    });
+    setIsMenuOpen(false);
+  };
   
   if (!activeConversation) return null;
 
@@ -40,6 +56,9 @@ export function ChatHeader({ onToggleDetails, onStartCall, onSearchChat }: ChatH
         .from('messages')
         .delete()
         .eq('conversation_id', activeConversation.id);
+      
+      // Bug 8: Clear messages locally
+      window.dispatchEvent(new CustomEvent(`chatflow_clear_chat_${activeConversation.id}`));
       setIsMenuOpen(false);
     } catch (err) {
       console.error('Failed to clear chat:', err);
@@ -179,8 +198,8 @@ export function ChatHeader({ onToggleDetails, onStartCall, onSearchChat }: ChatH
                 </button>
               )}
               <button
-                onClick={() => { setIsMuted(!isMuted); setIsMenuOpen(false); }}
-                className="w-full px-3 py-2 text-left hover:bg-zinc-800 flex items-center gap-2.5"
+                onClick={toggleMute}
+                className="w-full text-left px-4 py-2 hover:bg-zinc-800 transition-colors flex items-center gap-3 text-zinc-300"
               >
                 <Bell className="h-4 w-4 text-zinc-400" />
                 <span>{isMuted ? 'Unmute Notifications' : 'Mute Notifications'}</span>

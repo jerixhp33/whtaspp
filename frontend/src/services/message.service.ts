@@ -12,15 +12,29 @@ export const messageService = {
   removeReaction: async (messageId: string, emoji: string) => supabase.from('message_reactions').delete().match({ message_id: messageId, emoji }),
   markAsRead: async (messageId: string) => supabase.from('message_reads').insert({ message_id: messageId }),
   markConversationAsRead: async (conversationId: string, userId: string) => {
-    // 1. Get unread messages
+    // 1. Get already read messages
+    const { data: alreadyRead } = await supabase
+      .from('message_reads')
+      .select('message_id')
+      .eq('user_id', userId);
+
+    const readIds = new Set((alreadyRead || []).map((r: any) => r.message_id));
+
+    // 2. Get unread messages
     const { data: unread } = await supabase
       .from('messages')
       .select('id')
       .eq('conversation_id', conversationId)
-      .neq('sender_id', userId);
+      .neq('sender_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(100);
     
     if (unread && unread.length > 0) {
-      const reads = unread.map(m => ({ message_id: m.id, user_id: userId }));
+      const reads = unread
+        .filter((m: any) => !readIds.has(m.id))
+        .map((m: any) => ({ message_id: m.id, user_id: userId }));
+      
+      if (reads.length === 0) return { data: null, error: null };
       return supabase.from('message_reads').upsert(reads, { onConflict: 'message_id,user_id', ignoreDuplicates: true });
     }
     return { data: null, error: null };

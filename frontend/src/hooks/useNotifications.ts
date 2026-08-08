@@ -122,13 +122,10 @@ export function useNotifications(
         },
         (payload) => {
           const updated = payload.new as Notification;
-          setNotifications((prev) =>
-            prev.map((n) => (n.id === updated.id ? updated : n))
-          );
-          // Recalculate unread
           setNotifications((prev) => {
-            setUnreadCount(prev.filter((n) => !n.is_read).length);
-            return prev;
+            const next = prev.map((n) => (n.id === updated.id ? updated : n));
+            setUnreadCount(next.filter((n) => !n.is_read).length);
+            return next;
           });
         }
       )
@@ -175,11 +172,14 @@ export function useNotifications(
     await notificationCacheService.clearCache(userId);
   }, [userId]);
 
+  const notificationsLengthRef = useRef(0);
+  useEffect(() => { notificationsLengthRef.current = notifications.length; }, [notifications.length]);
+
   const loadMore = useCallback(async () => {
     if (!userId || loading || !hasMore) return;
     setLoading(true);
     try {
-      const offset = notifications.length;
+      const offset = notificationsLengthRef.current;
       const { data } = await notificationService.getNotifications(userId, PAGE_SIZE, offset);
       const items = (data || []) as Notification[];
       if (items.length < PAGE_SIZE) setHasMore(false);
@@ -194,7 +194,7 @@ export function useNotifications(
     } finally {
       setLoading(false);
     }
-  }, [userId, loading, hasMore, notifications.length]);
+  }, [userId, loading, hasMore]);
 
   return {
     notifications,

@@ -282,8 +282,6 @@ export const useMessages = (conversationId?: string) => {
   ) => {
     if (!conversationId || !currentUser) return;
 
-    console.log('[ChatFlow Debug] sendMessage - replyToMessage:', replyToMessage?.id, replyToMessage?.content);
-
     const clientMsgId = `client_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 
     const optimisticMsg: any = {
@@ -358,10 +356,14 @@ export const useMessages = (conversationId?: string) => {
       }
 
       // Reconcile optimistic message with real message
-      console.log('[ChatFlow Debug] serverMsg.reply_to raw:', serverMsg.reply_to);
-      console.log('[ChatFlow Debug] serverMsg.reply_to_id:', (serverMsg as any).reply_to_id);
       const confirmedMsg = normalizeMessage(serverMsg as unknown as Message);
-      console.log('[ChatFlow Debug] confirmedMsg.reply_to after normalize:', confirmedMsg.reply_to);
+
+      // Supabase .insert().select() often can't resolve the reply_to JOIN,
+      // returning an empty array. Preserve the reply data we already have.
+      if (!confirmedMsg.reply_to && replyToMessage) {
+        confirmedMsg.reply_to = replyToMessage;
+      }
+
       setMessages((prev) =>
         prev.map((m) =>
           (m as any).temp_id === clientMsgId || (m as any).client_message_id === clientMsgId
@@ -526,8 +528,15 @@ export const useMessages = (conversationId?: string) => {
             .select('*')
             .single();
 
+          const normalizedServerMsg = normalizeMessage(serverMsg as unknown as Message);
+
+          // Supabase .insert().select() can't resolve reply_to JOIN - preserve our data
+          if (!normalizedServerMsg.reply_to && replyToMessage) {
+            normalizedServerMsg.reply_to = replyToMessage;
+          }
+
           const finalMsg: Message = {
-            ...normalizeMessage(serverMsg as unknown as Message),
+            ...normalizedServerMsg,
             attachments: attData ? [attData] : serverMsg.attachments,
             localPreviewUrl,
             uploadProgress: 100,

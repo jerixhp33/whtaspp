@@ -54,9 +54,9 @@ export function ChatView({ onToggleDetails }: { onToggleDetails?: () => void }) 
   };
 
   return (
-    <div className="flex flex-col h-full w-full bg-zinc-950 relative overflow-hidden">
+    <div className="flex flex-col h-full w-full bg-zinc-950 relative overflow-hidden" style={{ height: '100dvh' }}>
       {/* Fixed Header */}
-      <div className="flex-shrink-0 z-20">
+      <div className="flex-shrink-0 z-20 will-change-transform">
         <ChatHeader onToggleDetails={onToggleDetails} onStartCall={handleStartCall} />
       </div>
 

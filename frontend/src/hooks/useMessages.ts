@@ -358,7 +358,10 @@ export const useMessages = (conversationId?: string) => {
       }
 
       // Reconcile optimistic message with real message
+      console.log('[ChatFlow Debug] serverMsg.reply_to raw:', serverMsg.reply_to);
+      console.log('[ChatFlow Debug] serverMsg.reply_to_id:', (serverMsg as any).reply_to_id);
       const confirmedMsg = normalizeMessage(serverMsg as unknown as Message);
+      console.log('[ChatFlow Debug] confirmedMsg.reply_to after normalize:', confirmedMsg.reply_to);
       setMessages((prev) =>
         prev.map((m) =>
           (m as any).temp_id === clientMsgId || (m as any).client_message_id === clientMsgId

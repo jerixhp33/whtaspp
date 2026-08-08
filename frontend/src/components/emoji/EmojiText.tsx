@@ -14,9 +14,9 @@ export function EmojiText({ text, className = '', animate = false, forceSize }: 
 
   const { isEmojiOnly, count } = isEmojiOnlyMessage(text);
 
-  if (isEmojiOnly) {
+  if (isEmojiOnly && !forceSize) {
     const emojis = text.trim().match(UNICODE_EMOJI_REGEX) || [];
-    const size = forceSize || (count === 1 ? 'jumbo' : count <= 3 ? 'xl' : 'lg');
+    const size = (count === 1 ? 'jumbo' : count <= 3 ? 'xl' : 'lg');
     return (
       <div className={`flex items-center flex-wrap justify-start py-1 ${className}`}>
         {emojis.map((emoji, idx) => (
@@ -25,7 +25,7 @@ export function EmojiText({ text, className = '', animate = false, forceSize }: 
             unicode={emoji}
             size={size}
             animate={animate}
-            continuousAnimation={count === 1 && !forceSize}
+            continuousAnimation={count === 1}
           />
         ))}
       </div>

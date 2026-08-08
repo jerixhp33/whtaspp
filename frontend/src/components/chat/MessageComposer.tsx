@@ -122,6 +122,7 @@ export function MessageComposer({
   };
 
   const handleSendMediaBatch = (items: { file: File; caption: string; rotation: number }[]) => {
+    const currentReply = replyMessage; // capture before clearing
     items.forEach((item) => {
       let type: 'image' | 'video' | 'audio' | 'document' = 'document';
       if (item.file.type.startsWith('image/')) type = 'image';
@@ -129,9 +130,9 @@ export function MessageComposer({
       else if (item.file.type.startsWith('audio/')) type = 'audio';
 
       if (onSendMediaMessage) {
-        onSendMediaMessage(item.file, type, item.caption, replyMessage);
+        onSendMediaMessage(item.file, type, item.caption, currentReply);
       } else {
-        onSendMessage(item.caption || item.file.name, type, undefined, replyMessage);
+        onSendMessage(item.caption || item.file.name, type, undefined, currentReply);
       }
     });
 
@@ -173,18 +174,20 @@ export function MessageComposer({
     }
 
     const messageText = text.trim();
+    const currentReply = replyMessage; // capture before clearing
     setText('');
-    if (onClearReply) onClearReply();
 
     if (activeConversation && navigator.onLine) {
       sendTypingSignal(activeConversation.id, false);
     }
 
-    onSendMessage(messageText, 'text', undefined, replyMessage);
+    onSendMessage(messageText, 'text', undefined, currentReply);
+    if (onClearReply) onClearReply();
   };
 
   const handleSendVoice = async (audioBlob: Blob, durationSecs: number) => {
     if (!activeConversation) return;
+    const currentReply = replyMessage; // capture before clearing
     setIsVoiceRecording(false);
 
     if (onSendMediaMessage) {
@@ -192,11 +195,11 @@ export function MessageComposer({
         audioBlob,
         'voice',
         `Voice message (${durationSecs}s)`,
-        replyMessage,
+        currentReply,
         durationSecs
       );
     } else {
-      onSendMessage(`Voice message (${durationSecs}s)`, 'voice', undefined, replyMessage);
+      onSendMessage(`Voice message (${durationSecs}s)`, 'voice', undefined, currentReply);
     }
 
     if (onClearReply) onClearReply();

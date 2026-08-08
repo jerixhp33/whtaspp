@@ -53,53 +53,77 @@ class OfflineDBService {
 
   private getDB(): Promise<IDBPDatabase<ChatFlowDBSchema>> {
     if (!this.dbPromise) {
-      this.dbPromise = openDB<ChatFlowDBSchema>(DB_NAME, DB_VERSION, {
-        upgrade(db) {
-          // Conversations store
-          if (!db.objectStoreNames.contains('conversations')) {
-            const convStore = db.createObjectStore('conversations', { keyPath: 'id' });
-            convStore.createIndex('by-updated', 'updated_at');
-          }
-
-          // Messages store
-          if (!db.objectStoreNames.contains('messages')) {
-            const msgStore = db.createObjectStore('messages', { keyPath: 'id' });
-            msgStore.createIndex('by-conversation', 'conversation_id');
-            msgStore.createIndex('by-created', 'created_at');
-          }
-
-          // Profiles store
-          if (!db.objectStoreNames.contains('profiles')) {
-            db.createObjectStore('profiles', { keyPath: 'id' });
-          }
-
-          // Media blobs store
-          if (!db.objectStoreNames.contains('media')) {
-            const mediaStore = db.createObjectStore('media', { keyPath: 'id' });
-            mediaStore.createIndex('by-cached-at', 'cachedAt');
-          }
-
-          // Outgoing queue store
-          if (!db.objectStoreNames.contains('outgoing_queue')) {
-            const queueStore = db.createObjectStore('outgoing_queue', { keyPath: 'tempId' });
-            queueStore.createIndex('by-conversation', 'conversationId');
-            queueStore.createIndex('by-created', 'createdAt');
-          }
-        },
-      });
+      this.dbPromise = this.openDatabase();
     }
     return this.dbPromise;
+  }
+
+  private openDatabase(): Promise<IDBPDatabase<ChatFlowDBSchema>> {
+    return openDB<ChatFlowDBSchema>(DB_NAME, DB_VERSION, {
+      upgrade(db) {
+        // Conversations store
+        if (!db.objectStoreNames.contains('conversations')) {
+          const convStore = db.createObjectStore('conversations', { keyPath: 'id' });
+          convStore.createIndex('by-updated', 'updated_at');
+        }
+
+        // Messages store
+        if (!db.objectStoreNames.contains('messages')) {
+          const msgStore = db.createObjectStore('messages', { keyPath: 'id' });
+          msgStore.createIndex('by-conversation', 'conversation_id');
+          msgStore.createIndex('by-created', 'created_at');
+        }
+
+        // Profiles store
+        if (!db.objectStoreNames.contains('profiles')) {
+          db.createObjectStore('profiles', { keyPath: 'id' });
+        }
+
+        // Media blobs store
+        if (!db.objectStoreNames.contains('media')) {
+          const mediaStore = db.createObjectStore('media', { keyPath: 'id' });
+          mediaStore.createIndex('by-cached-at', 'cachedAt');
+        }
+
+        // Outgoing queue store
+        if (!db.objectStoreNames.contains('outgoing_queue')) {
+          const queueStore = db.createObjectStore('outgoing_queue', { keyPath: 'tempId' });
+          queueStore.createIndex('by-conversation', 'conversationId');
+          queueStore.createIndex('by-created', 'createdAt');
+        }
+      },
+    });
+  }
+
+  /**
+   * Wraps a DB operation with automatic reconnection if the connection was closed.
+   * On InvalidStateError (connection closing), resets the cached promise and retries once.
+   */
+  private async withRetry<T>(operation: (db: IDBPDatabase<ChatFlowDBSchema>) => Promise<T>): Promise<T> {
+    try {
+      const db = await this.getDB();
+      return await operation(db);
+    } catch (err: any) {
+      if (err?.name === 'InvalidStateError' || err?.message?.includes('connection is closing')) {
+        // Connection was closed — reopen and retry once
+        this.dbPromise = this.openDatabase();
+        const db = await this.getDB();
+        return await operation(db);
+      }
+      throw err;
+    }
   }
 
   // --- Conversations ---
   async saveConversations(conversations: Conversation[]): Promise<void> {
     try {
-      const db = await this.getDB();
-      const tx = db.transaction('conversations', 'readwrite');
-      for (const conv of conversations) {
-        await tx.store.put(conv);
-      }
-      await tx.done;
+      await this.withRetry(async (db) => {
+        const tx = db.transaction('conversations', 'readwrite');
+        for (const conv of conversations) {
+          await tx.store.put(conv);
+        }
+        await tx.done;
+      });
     } catch (err) {
       console.warn('OfflineDB: saveConversations failed', err);
     }
@@ -107,8 +131,7 @@ class OfflineDBService {
 
   async getConversations(): Promise<Conversation[]> {
     try {
-      const db = await this.getDB();
-      return await db.getAll('conversations');
+      return await this.withRetry((db) => db.getAll('conversations'));
     } catch (err) {
       console.warn('OfflineDB: getConversations failed', err);
       return [];
@@ -117,8 +140,7 @@ class OfflineDBService {
 
   async saveConversation(conversation: Conversation): Promise<void> {
     try {
-      const db = await this.getDB();
-      await db.put('conversations', conversation);
+      await this.withRetry((db) => db.put('conversations', conversation));
     } catch (err) {
       console.warn('OfflineDB: saveConversation failed', err);
     }
@@ -127,12 +149,13 @@ class OfflineDBService {
   // --- Messages ---
   async saveMessages(messages: Message[]): Promise<void> {
     try {
-      const db = await this.getDB();
-      const tx = db.transaction('messages', 'readwrite');
-      for (const msg of messages) {
-        await tx.store.put(msg);
-      }
-      await tx.done;
+      await this.withRetry(async (db) => {
+        const tx = db.transaction('messages', 'readwrite');
+        for (const msg of messages) {
+          await tx.store.put(msg);
+        }
+        await tx.done;
+      });
     } catch (err) {
       console.warn('OfflineDB: saveMessages failed', err);
     }
@@ -140,13 +163,14 @@ class OfflineDBService {
 
   async getMessagesByConversation(conversationId: string, limit: number = 100): Promise<Message[]> {
     try {
-      const db = await this.getDB();
-      const index = db.transaction('messages').store.index('by-conversation');
-      const messages = await index.getAll(conversationId);
-      // Sort chronologically ascending
-      return messages
-        .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
-        .slice(-limit);
+      return await this.withRetry(async (db) => {
+        const index = db.transaction('messages').store.index('by-conversation');
+        const messages = await index.getAll(conversationId);
+        // Sort chronologically ascending
+        return messages
+          .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+          .slice(-limit);
+      });
     } catch (err) {
       console.warn('OfflineDB: getMessagesByConversation failed', err);
       return [];
@@ -155,8 +179,7 @@ class OfflineDBService {
 
   async saveMessage(message: Message): Promise<void> {
     try {
-      const db = await this.getDB();
-      await db.put('messages', message);
+      await this.withRetry((db) => db.put('messages', message));
     } catch (err) {
       console.warn('OfflineDB: saveMessage failed', err);
     }
@@ -164,8 +187,7 @@ class OfflineDBService {
 
   async deleteMessage(messageId: string): Promise<void> {
     try {
-      const db = await this.getDB();
-      await db.delete('messages', messageId);
+      await this.withRetry((db) => db.delete('messages', messageId));
     } catch (err) {
       console.warn('OfflineDB: deleteMessage failed', err);
     }
@@ -174,8 +196,7 @@ class OfflineDBService {
   // --- Profiles ---
   async saveProfile(profile: Profile): Promise<void> {
     try {
-      const db = await this.getDB();
-      await db.put('profiles', profile);
+      await this.withRetry((db) => db.put('profiles', profile));
     } catch (err) {
       console.warn('OfflineDB: saveProfile failed', err);
     }
@@ -183,8 +204,7 @@ class OfflineDBService {
 
   async getProfile(userId: string): Promise<Profile | undefined> {
     try {
-      const db = await this.getDB();
-      return await db.get('profiles', userId);
+      return await this.withRetry((db) => db.get('profiles', userId));
     } catch (err) {
       console.warn('OfflineDB: getProfile failed', err);
       return undefined;
@@ -194,14 +214,15 @@ class OfflineDBService {
   // --- Media Blobs ---
   async saveMediaBlob(id: string, blob: Blob, mimeType: string, fileName: string): Promise<void> {
     try {
-      const db = await this.getDB();
-      await db.put('media', {
-        id,
-        blob,
-        mimeType,
-        fileName,
-        size: blob.size,
-        cachedAt: Date.now(),
+      await this.withRetry(async (db) => {
+        await db.put('media', {
+          id,
+          blob,
+          mimeType,
+          fileName,
+          size: blob.size,
+          cachedAt: Date.now(),
+        });
       });
     } catch (err) {
       console.warn('OfflineDB: saveMediaBlob failed', err);
@@ -210,8 +231,7 @@ class OfflineDBService {
 
   async getMediaBlob(id: string): Promise<CachedMedia | undefined> {
     try {
-      const db = await this.getDB();
-      return await db.get('media', id);
+      return await this.withRetry((db) => db.get('media', id));
     } catch (err) {
       console.warn('OfflineDB: getMediaBlob failed', err);
       return undefined;
@@ -221,8 +241,7 @@ class OfflineDBService {
   // --- Outgoing Pending Queue ---
   async enqueueOutgoing(item: OutgoingMessage): Promise<void> {
     try {
-      const db = await this.getDB();
-      await db.put('outgoing_queue', item);
+      await this.withRetry((db) => db.put('outgoing_queue', item));
     } catch (err) {
       console.warn('OfflineDB: enqueueOutgoing failed', err);
     }
@@ -230,8 +249,7 @@ class OfflineDBService {
 
   async getOutgoingQueue(): Promise<OutgoingMessage[]> {
     try {
-      const db = await this.getDB();
-      return await db.getAll('outgoing_queue');
+      return await this.withRetry((db) => db.getAll('outgoing_queue'));
     } catch (err) {
       console.warn('OfflineDB: getOutgoingQueue failed', err);
       return [];
@@ -240,8 +258,7 @@ class OfflineDBService {
 
   async removeOutgoing(tempId: string): Promise<void> {
     try {
-      const db = await this.getDB();
-      await db.delete('outgoing_queue', tempId);
+      await this.withRetry((db) => db.delete('outgoing_queue', tempId));
     } catch (err) {
       console.warn('OfflineDB: removeOutgoing failed', err);
     }
@@ -250,17 +267,18 @@ class OfflineDBService {
   // --- Storage Stats & Clearing ---
   async getStorageStats(): Promise<{ conversationsCount: number; messagesCount: number; mediaBytes: number; mediaCount: number }> {
     try {
-      const db = await this.getDB();
-      const conversationsCount = await db.count('conversations');
-      const messagesCount = await db.count('messages');
-      const allMedia = await db.getAll('media');
-      const mediaBytes = allMedia.reduce((sum, item) => sum + (item.size || 0), 0);
-      return {
-        conversationsCount,
-        messagesCount,
-        mediaBytes,
-        mediaCount: allMedia.length,
-      };
+      return await this.withRetry(async (db) => {
+        const conversationsCount = await db.count('conversations');
+        const messagesCount = await db.count('messages');
+        const allMedia = await db.getAll('media');
+        const mediaBytes = allMedia.reduce((sum, item) => sum + (item.size || 0), 0);
+        return {
+          conversationsCount,
+          messagesCount,
+          mediaBytes,
+          mediaCount: allMedia.length,
+        };
+      });
     } catch (err) {
       console.warn('OfflineDB: getStorageStats failed', err);
       return { conversationsCount: 0, messagesCount: 0, mediaBytes: 0, mediaCount: 0 };
@@ -269,11 +287,12 @@ class OfflineDBService {
 
   async clearLocalCache(): Promise<void> {
     try {
-      const db = await this.getDB();
-      await db.clear('conversations');
-      await db.clear('messages');
-      await db.clear('profiles');
-      await db.clear('media');
+      await this.withRetry(async (db) => {
+        await db.clear('conversations');
+        await db.clear('messages');
+        await db.clear('profiles');
+        await db.clear('media');
+      });
     } catch (err) {
       console.warn('OfflineDB: clearLocalCache failed', err);
     }

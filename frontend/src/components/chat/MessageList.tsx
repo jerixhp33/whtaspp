@@ -276,6 +276,7 @@ export function MessageList({ onReply, onEdit, messagesHook }: Props) {
               <MessageBubble
                 key={msg.id}
                 message={msg}
+                resolvedReplyData={msg.reply_to || (msg.reply_to_id ? messages.find(m => m.id === msg.reply_to_id) : undefined)}
                 isGroup={isGroup}
                 showAvatar={!isNextSameSender}
                 showSenderName={!isPrevSameSender}

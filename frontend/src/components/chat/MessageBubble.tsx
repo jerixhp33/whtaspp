@@ -51,6 +51,7 @@ interface Props {
   onOpenActionSheet?: (msg: Message) => void;
   onScrollToReply?: (replyId: string) => void;
   allMediaItems?: MediaViewerItem[];
+  resolvedReplyData?: Message;
 }
 
 const EMOJI_REACTIONS = ['❤️', '😂', '👍', '🔥', '😮', '😢'];
@@ -72,6 +73,7 @@ export function MessageBubble({
   onOpenActionSheet,
   onScrollToReply,
   allMediaItems = [],
+  resolvedReplyData,
 }: Props) {
   const { user } = useAuth();
   const [fullscreenOpen, setFullscreenOpen] = useState(false);
@@ -495,8 +497,7 @@ export function MessageBubble({
     if (!raw || raw.toLowerCase() === 'user') return '';
     return raw;
   })();
-
-  const replyData = Array.isArray(message.reply_to) ? message.reply_to[0] : message.reply_to;
+  const replyData = resolvedReplyData || (Array.isArray(message.reply_to) ? message.reply_to[0] : message.reply_to);
 
   const replySenderNameClean = (() => {
     const raw = replyData?.sender?.display_name || replyData?.sender?.username;

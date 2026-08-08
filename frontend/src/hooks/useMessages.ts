@@ -282,6 +282,8 @@ export const useMessages = (conversationId?: string) => {
   ) => {
     if (!conversationId || !currentUser) return;
 
+    console.log('[ChatFlow Debug] sendMessage - replyToMessage:', replyToMessage?.id, replyToMessage?.content);
+
     const clientMsgId = `client_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 
     const optimisticMsg: any = {

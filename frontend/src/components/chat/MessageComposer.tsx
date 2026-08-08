@@ -175,6 +175,8 @@ export function MessageComposer({
 
     const messageText = text.trim();
     const currentReply = replyMessage; // capture before clearing
+    console.log('[ChatFlow Debug] handleSendText - replyMessage prop:', replyMessage);
+    console.log('[ChatFlow Debug] handleSendText - currentReply:', currentReply?.id, currentReply?.content);
     setText('');
 
     if (activeConversation && navigator.onLine) {

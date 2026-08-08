@@ -15,6 +15,12 @@ const MESSAGE_SELECT_QUERY = `
   reply_to:messages!reply_to_id(*, sender:profiles!sender_id(*))
 `;
 
+const normalizeMessage = (msg: any): Message => {
+  if (!msg) return msg;
+  const replyTo = Array.isArray(msg.reply_to) ? (msg.reply_to[0] ?? undefined) : msg.reply_to;
+  return { ...msg, reply_to: replyTo ?? undefined };
+};
+
 export const useMessages = (conversationId?: string) => {
   const { user } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
@@ -36,7 +42,7 @@ export const useMessages = (conversationId?: string) => {
         .single();
 
       if (!error && data) {
-        const fullMsg = data as unknown as Message;
+        const fullMsg = normalizeMessage(data as unknown as Message);
         setMessages((prev) => {
           const clientMsgId = fullMsg.metadata?.client_message_id;
           const index = prev.findIndex(
@@ -158,7 +164,7 @@ export const useMessages = (conversationId?: string) => {
 
           if (isMounted) {
             if (!error && data) {
-              const freshMessages = data as unknown as Message[];
+              const freshMessages = (data as unknown as Message[]).map(normalizeMessage);
               setMessages(freshMessages);
               
               if (user) {
@@ -350,7 +356,7 @@ export const useMessages = (conversationId?: string) => {
       }
 
       // Reconcile optimistic message with real message
-      const confirmedMsg = serverMsg as unknown as Message;
+      const confirmedMsg = normalizeMessage(serverMsg as unknown as Message);
       setMessages((prev) =>
         prev.map((m) =>
           (m as any).temp_id === clientMsgId || (m as any).client_message_id === clientMsgId
@@ -516,7 +522,7 @@ export const useMessages = (conversationId?: string) => {
             .single();
 
           const finalMsg: Message = {
-            ...(serverMsg as unknown as Message),
+            ...normalizeMessage(serverMsg as unknown as Message),
             attachments: attData ? [attData] : serverMsg.attachments,
             localPreviewUrl,
             uploadProgress: 100,

@@ -326,7 +326,11 @@ export function MessageList({ onReply, onEdit, messagesHook }: Props) {
           isOwn={actionSheetMessage.sender_id === user?.id}
           onClose={() => setActionSheetMessage(null)}
           onReact={(emoji) => user && toggleReaction(actionSheetMessage.id, emoji, user.id)}
-          onReply={() => onReply && onReply(actionSheetMessage)}
+          onReply={() => {
+            const msg = actionSheetMessage;
+            setActionSheetMessage(null);
+            if (msg && onReply) onReply(msg);
+          }}
           onCopy={() => {
             if (actionSheetMessage.content) {
               navigator.clipboard.writeText(actionSheetMessage.content);
